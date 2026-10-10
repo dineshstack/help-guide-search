@@ -1,0 +1,53 @@
+[project]
+name = "help-guide-search"
+version = "0.1.0"
+description = "Search over a set of public help guides, with an evaluation of how well it works."
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+license = "MIT"
+license-files = ["LICENSE"]
+dependencies = [
+    "fastapi>=0.143",
+    "uvicorn>=0.54",
+    "httpx>=0.28",
+    "psycopg[binary]>=3.3",
+    "pgvector>=0.5",
+    "sentence-transformers>=6.1,<7",
+    "torch>=2.14",
+]
+
+# Extra tools that the search itself does not need.
+# Install one with: uv sync --group <name>
+[dependency-groups]
+# httpx2 is what FastAPI's test client is built on.
+dev = ["pytest>=9", "httpx2>=2.13"]
+baseline = ["anthropic>=1,<2"]
+localdb = ["pixeltable-pgserver>=0.6"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/guide_search"]
+
+# On Linux, take torch from the CPU-only index. The default Linux build
+# bundles GPU libraries and is several times larger. macOS is not affected.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+# Plain `pytest` runs the unit tests only. To run the others, name the marker:
+# `pytest -m integration` or `pytest -m model`. A later -m replaces this one.
+addopts = "-m 'not integration and not model'"
+markers = [
+    "integration: needs a real Postgres (set TEST_DATABASE_URL)",
+    "model: needs the embedding model, which is downloaded on first use",
+]

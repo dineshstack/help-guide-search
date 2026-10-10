@@ -1,0 +1,19 @@
+# The virtual environment that uv creates
+.venv
+
+# Files Python and pytest write while running
+__pycache__
+.pytest_cache
+
+# Real settings for this machine. Only .env.example is committed.
+.env
+
+# Data folder of the optional local Postgres
+.localdb/
+
+# Build output
+*.egg-info
+dist/
+
+# macOS folder settings
+.DS_Store
