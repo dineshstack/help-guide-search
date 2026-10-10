@@ -1,0 +1,48 @@
+{
+  "source": "https://support.orions360.com/api/kb",
+  "product": "autoserv-pro",
+  "locale": "en",
+  "fetched_at": "2026-01-01",
+  "guides": [
+    {
+      "id": 2,
+      "slug": "mend-a-torn-sail",
+      "title": "Mend a torn sail",
+      "url": "https://support.orions360.com/help/en/autoserv-pro/mend-a-torn-sail",
+      "updated_at": "2026-01-01T00:00:00+00:00",
+      "body": "This guide is made up for the tests. The kite workshop in it does not exist. A torn sail is patched with ripstop film before the kite flies again.\n\n## Before you start\n\nDry the sail and brush off any sand. Lay it flat on the bench.\n\n## Patch the tear\n\n1. Cut a round patch of ripstop film, bigger than the tear.\n2. Press the patch onto the front and the back of the sail and leave it under a heavy book for an hour.\n\n## Troubleshooting\n\nIf the patch peels off, wipe the sail with a damp rag and press on a fresh patch.\n\n## Related articles\n\n- [Replace a snapped spar](/help/en/autoserv-pro/replace-a-snapped-spar)\n- [Hire the gazebo for a festival](/help/en/autoserv-pro/hire-the-gazebo)"
+    },
+    {
+      "id": 3,
+      "slug": "replace-a-snapped-spar",
+      "title": "Replace a snapped spar",
+      "url": "https://support.orions360.com/help/en/autoserv-pro/replace-a-snapped-spar",
+      "updated_at": "2026-01-01T00:00:00+00:00",
+      "body": "## Fit the new spar\n\nSlide the snapped spar out of its sleeve. Measure it, cut a carbon rod to the same length, and push the rod into the sleeve until it clicks.\n\n## Related articles\n\n- [Mend a torn sail](/help/en/autoserv-pro/mend-a-torn-sail)"
+    },
+    {
+      "id": 5,
+      "slug": "flying-line-in-stock",
+      "title": "Flying line in stock",
+      "url": "https://support.orions360.com/help/en/autoserv-pro/flying-line-in-stock",
+      "updated_at": "2026-01-01T00:00:00+00:00",
+      "body": "## How to read the list\n\nEvery row gives the colour of the line, its length, and the weight it holds.\n\n## Stock list\n\n- Blue line, 20 metres, holds 10 kilograms\n- Green line, 20 metres, holds 18 kilograms\n- Yellow line, 20 metres, holds 35 kilograms\n- White line, 20 metres, holds 10 kilograms\n- Orange line, 20 metres, holds 18 kilograms\n- Pink line, 20 metres, holds 35 kilograms\n- Blue line, 40 metres, holds 10 kilograms\n- Green line, 40 metres, holds 18 kilograms\n- Yellow line, 40 metres, holds 35 kilograms\n- White line, 40 metres, holds 10 kilograms\n- Orange line, 40 metres, holds 18 kilograms\n- Pink line, 40 metres, holds 35 kilograms\n- Blue line, 50 metres, holds 10 kilograms\n- Green line, 50 metres, holds 18 kilograms\n- Yellow line, 50 metres, holds 35 kilograms\n- White line, 50 metres, holds 10 kilograms\n- Orange line, 50 metres, holds 18 kilograms\n- Pink line, 50 metres, holds 35 kilograms\n- Blue line, 60 metres, holds 10 kilograms\n- Green line, 60 metres, holds 18 kilograms\n- Yellow line, 60 metres, holds 35 kilograms\n- White line, 60 metres, holds 10 kilograms\n- Orange line, 60 metres, holds 18 kilograms\n- Pink line, 60 metres, holds 35 kilograms\n- Blue line, 80 metres, holds 10 kilograms\n- Green line, 80 metres, holds 18 kilograms\n- Yellow line, 80 metres, holds 35 kilograms\n- White line, 80 metres, holds 10 kilograms\n- Orange line, 80 metres, holds 18 kilograms\n- Pink line, 80 metres, holds 35 kilograms\n- Blue line, 90 metres, holds 10 kilograms\n- Green line, 90 metres, holds 18 kilograms\n- Yellow line, 90 metres, holds 35 kilograms\n- White line, 90 metres, holds 10 kilograms\n- Orange line, 90 metres, holds 18 kilograms\n- Pink line, 90 metres, holds 35 kilograms"
+    },
+    {
+      "id": 8,
+      "slug": "workshop-questions",
+      "title": "Common questions about the workshop",
+      "url": "https://support.orions360.com/help/en/autoserv-pro/workshop-questions",
+      "updated_at": "2026-01-01T00:00:00+00:00",
+      "body": "Short answers to what visitors ask most often.\n\n## Can I leave my kite overnight?\n\nYes. Lockers are free for a single night.\n\n## Do you repair stunt kites?\n\nYes, but only models with two handles.\n\n## Is the workshop open on Sunday?\n\nNo. It is closed on Sunday and on Monday.\n\n## Can I pay by card?\n\nYes. Coins and cards are both accepted at the counter.\n\n## Related articles\n\n- [Send a pickup reminder](/help/en/autoserv-pro/send-a-pickup-reminder)"
+    },
+    {
+      "id": 13,
+      "slug": "send-a-pickup-reminder",
+      "title": "Send a pickup reminder",
+      "url": "https://support.orions360.com/help/en/autoserv-pro/send-a-pickup-reminder",
+      "updated_at": "2026-01-01T00:00:00+00:00",
+      "body": "When a repair is ready, the owner is told to collect the kite.\n\n## Send the reminder by SMS\n\nOpen the repair ticket and press Remind. The owner receives an SMS with the pickup code.\n\n## Troubleshooting\n\nIf the SMS does not arrive, check the phone number on the repair ticket and press Remind again.\n\n## Related articles\n\n- [Common questions about the workshop](/help/en/autoserv-pro/workshop-questions)"
+    }
+  ]
+}
