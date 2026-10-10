@@ -1,0 +1,56 @@
+# Postgres with pgvector, plus an "app" image for one-off commands.
+#
+#   docker compose up -d db                                   start the database
+#   docker compose run --rm app python -m guide_search.ingest  build the index
+#   docker compose run --rm app pytest -m integration -q       run the integration tests
+#   docker compose down                                        stop; the data volumes are kept
+#
+# POSTGRES_PASSWORD comes from a .env file next to this file. It is never committed.
+name: help-guide-search
+
+services:
+  db:
+    # Pinned by tag and digest, so every machine runs exactly the same image.
+    image: pgvector/pgvector:0.8.7-pg16@sha256:7b822b0aac60967beb1ea5e576b8602c94c300a157d187f385ae3e0da199b90a
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?put POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: guides
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    ports:
+      # Reachable from this machine only, never from the network.
+      - "127.0.0.1:54329:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d guides"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    mem_limit: 1g
+    cpus: 1.0
+
+  app:
+    build: .
+    # Only started when asked for by name (docker compose run app ...).
+    profiles: ["tools"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/guides
+      TEST_DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/guides_test
+      # The container may use 2 CPUs (below). Without this the model would start
+      # one thread per core of the whole machine and they would get in each other's way.
+      OMP_NUM_THREADS: "2"
+    volumes:
+      - models:/models
+      # The report and results are written here, so they land on the host.
+      - ./evaluation:/app/evaluation
+      # The threshold lives here. Shared, so choosing it in a container is kept.
+      - ./settings.toml:/app/settings.toml
+    mem_limit: 3g
+    cpus: 2.0
+
+volumes:
+  pgdata: {}
+  models: {}
