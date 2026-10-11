@@ -1,0 +1,2794 @@
+{
+  "threshold": 0.0,
+  "fetched_at": "2026-10-10",
+  "model_id": "intfloat/multilingual-e5-small@614241f622f53c4eeff9890bdc4f31cfecc418b3",
+  "outcomes": [
+    {
+      "question_id": "en-001",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "plans-trials-and-billing",
+        "frequently-asked-questions",
+        "overview"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-001",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "overview",
+        "company-branding-and-preferences",
+        "login-access-and-plan-problems"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8787812662851071
+    },
+    {
+      "question_id": "en-001",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "start-using-sam",
+        "company-branding-and-preferences",
+        "customer-portal"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-001",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "overview",
+        "customer-portal",
+        "plans-trials-and-billing"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8787812662851071
+    },
+    {
+      "question_id": "en-002",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "start-using-sam",
+        "first-workshop-job",
+        "overview"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-002",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "replenish-parts-for-a-job",
+        "walk-in-to-payment",
+        "booking-job-and-stock-problems"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8783932400707475
+    },
+    {
+      "question_id": "en-002",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "overview",
+        "company-branding-and-preferences",
+        "start-using-sam"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-002",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "overview",
+        "booking-job-and-stock-problems",
+        "first-workshop-job"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8783932400707475
+    },
+    {
+      "question_id": "en-003",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "booking-job-and-stock-problems",
+        "dashboard-and-navigation",
+        "frequently-asked-questions"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-003",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "create-and-manage-work-orders",
+        "advances-and-bulk-payments",
+        "booking-job-and-stock-problems"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8554788914037427
+    },
+    {
+      "question_id": "en-003",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "create-and-approve-job-orders",
+        "rework-and-completion",
+        "overview"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-003",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "booking-job-and-stock-problems",
+        "rework-and-completion",
+        "create-and-approve-job-orders"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8554788914037427
+    },
+    {
+      "question_id": "en-004",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "create-and-manage-customers",
+        "create-and-issue-an-invoice",
+        "frequently-asked-questions"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-004",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "frequently-asked-questions",
+        "start-using-sam",
+        "financial-reports-and-statements"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8524337068925416
+    },
+    {
+      "question_id": "en-004",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "fleet-billing-and-payments",
+        "create-and-manage-customers",
+        "set-booking-hours-and-holidays"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-004",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "financial-reports-and-statements",
+        "maintenance-and-driver-handovers",
+        "overview"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8524337068925416
+    },
+    {
+      "question_id": "en-005",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "book-a-service-online",
+        "create-and-manage-customers",
+        "add-and-manage-vehicles"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-005",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "overview",
+        "walk-in-to-payment",
+        "share-progress-and-inspections"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8499866813429203
+    },
+    {
+      "question_id": "en-005",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "create-and-manage-customers",
+        "manage-service-bookings",
+        "first-workshop-job"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-005",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "manage-service-bookings",
+        "share-progress-and-inspections",
+        "walk-in-to-payment"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8499866813429203
+    },
+    {
+      "question_id": "en-006",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "frequently-asked-questions",
+        "inspect-a-vehicle"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-006",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "inspect-a-vehicle",
+        "start-using-sam",
+        "track-technician-work"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8415110801749792
+    },
+    {
+      "question_id": "en-006",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "inspect-a-vehicle",
+        "set-booking-hours-and-holidays",
+        "expenses-and-other-income"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-006",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "inspect-a-vehicle",
+        "set-booking-hours-and-holidays",
+        "expenses-and-other-income"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8415110801749792
+    },
+    {
+      "question_id": "en-007",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "email-whatsapp-and-link-problems",
+        "share-progress-and-inspections",
+        "customer-portal"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-007",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "share-progress-and-inspections",
+        "inspection-to-approved-repair",
+        "replenish-parts-for-a-job"
+      ],
+      "hit_at_3": true,
+      "passage_hit": false,
+      "best_similarity": 0.8637477240712822
+    },
+    {
+      "question_id": "en-007",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "create-and-manage-customers",
+        "email-whatsapp-and-link-problems",
+        "first-workshop-job"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-007",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "share-progress-and-inspections",
+        "walk-in-to-payment",
+        "manage-service-bookings"
+      ],
+      "hit_at_3": true,
+      "passage_hit": false,
+      "best_similarity": 0.8637477240712822
+    },
+    {
+      "question_id": "en-008",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "create-and-send-an-estimate",
+        "create-and-approve-job-orders",
+        "inspection-to-approved-repair"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-008",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "create-and-send-an-estimate",
+        "book-a-service-online",
+        "inspection-to-approved-repair"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8558470692725751
+    },
+    {
+      "question_id": "en-008",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "overview",
+        "create-and-manage-work-orders",
+        "create-and-manage-customers"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-008",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "create-and-send-an-estimate",
+        "inspection-to-approved-repair",
+        "create-and-approve-job-orders"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8558470692725751
+    },
+    {
+      "question_id": "en-009",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "create-and-approve-job-orders",
+        "rework-and-completion",
+        "booking-job-and-stock-problems"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-009",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "inspection-to-approved-repair",
+        "replenish-parts-for-a-job",
+        "booking-job-and-stock-problems"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.874873243294972
+    },
+    {
+      "question_id": "en-009",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "understand-job-costs",
+        "booking-job-and-stock-problems",
+        "create-and-approve-job-orders"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-009",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "booking-job-and-stock-problems",
+        "request-and-issue-parts",
+        "inspection-to-approved-repair"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.874873243294972
+    },
+    {
+      "question_id": "en-010",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "track-technician-work",
+        "understand-job-costs",
+        "rework-and-completion"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-010",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "rework-and-completion",
+        "maintenance-and-driver-handovers",
+        "track-technician-work"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8456867933273315
+    },
+    {
+      "question_id": "en-010",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "create-and-approve-job-orders",
+        "rework-and-completion",
+        "add-employees-and-share-access"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-010",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "rework-and-completion",
+        "create-and-approve-job-orders",
+        "maintenance-and-driver-handovers"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8456867933273315
+    },
+    {
+      "question_id": "en-011",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "rework-and-completion",
+        "create-and-manage-work-orders",
+        "track-technician-work"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-011",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "replenish-parts-for-a-job",
+        "use-the-bay-board",
+        "walk-in-to-payment"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8780611753463745
+    },
+    {
+      "question_id": "en-011",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "create-and-approve-job-orders",
+        "rework-and-completion",
+        "first-workshop-job"
+      ],
+      "hit_at_3": true,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-011",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "first-workshop-job",
+        "replenish-parts-for-a-job",
+        "dashboard-and-navigation"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8780611753463745
+    },
+    {
+      "question_id": "en-012",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "use-the-bay-board"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-012",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "overview",
+        "add-and-manage-vehicles",
+        "use-the-bay-board"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8204248547554016
+    },
+    {
+      "question_id": "en-012",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "overview",
+        "sign-in-and-passwords",
+        "dashboard-and-navigation"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-012",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "overview",
+        "inspect-a-vehicle",
+        "sign-in-and-passwords"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8204248547554016
+    },
+    {
+      "question_id": "en-013",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "create-and-send-an-estimate",
+        "manage-labour-tasks",
+        "frequently-asked-questions"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-013",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "manage-labour-tasks",
+        "understand-job-costs",
+        "create-service-packages"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8574561561670225
+    },
+    {
+      "question_id": "en-013",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "manage-labour-tasks",
+        "inspection-to-approved-repair",
+        "create-job-templates"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-013",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "manage-labour-tasks",
+        "understand-job-costs",
+        "inspection-to-approved-repair"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8574561561670225
+    },
+    {
+      "question_id": "en-014",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "add-products-and-opening-stock",
+        "adjust-and-review-stock",
+        "suppliers-and-purchase-orders"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-014",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "request-and-issue-parts",
+        "replenish-parts-for-a-job",
+        "add-products-and-opening-stock"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8220690700925564
+    },
+    {
+      "question_id": "en-014",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "manage-service-bookings",
+        "add-products-and-opening-stock",
+        "create-and-send-an-estimate"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-014",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "request-and-issue-parts",
+        "add-products-and-opening-stock",
+        "manage-service-bookings"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8220690700925564
+    },
+    {
+      "question_id": "en-015",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "adjust-and-review-stock"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-015",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "adjust-and-review-stock",
+        "replenish-parts-for-a-job",
+        "request-and-issue-parts"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.877718038694977
+    },
+    {
+      "question_id": "en-015",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "add-products-and-opening-stock",
+        "configure-document-numbering",
+        "adjust-and-review-stock"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-015",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "adjust-and-review-stock",
+        "booking-job-and-stock-problems",
+        "request-and-issue-parts"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.877718038694977
+    },
+    {
+      "question_id": "en-016",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "request-and-issue-parts",
+        "booking-job-and-stock-problems"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-016",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "request-and-issue-parts",
+        "replenish-parts-for-a-job",
+        "create-and-approve-job-orders"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8750343918800354
+    },
+    {
+      "question_id": "en-016",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "request-and-issue-parts",
+        "understand-job-costs",
+        "replenish-parts-for-a-job"
+      ],
+      "hit_at_3": true,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-016",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "request-and-issue-parts",
+        "replenish-parts-for-a-job",
+        "understand-job-costs"
+      ],
+      "hit_at_3": true,
+      "passage_hit": false,
+      "best_similarity": 0.8750343918800354
+    },
+    {
+      "question_id": "en-017",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "create-and-issue-an-invoice",
+        "understand-job-costs",
+        "frequently-asked-questions"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-017",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "advances-and-bulk-payments",
+        "record-invoice-payments",
+        "frequently-asked-questions"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8489589185143177
+    },
+    {
+      "question_id": "en-017",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "overview",
+        "fleet-billing-and-payments",
+        "create-and-issue-an-invoice"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-017",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "frequently-asked-questions",
+        "walk-in-to-payment",
+        "create-and-issue-an-invoice"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8489589185143177
+    },
+    {
+      "question_id": "en-018",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "invoice-and-payment-problems",
+        "record-invoice-payments",
+        "frequently-asked-questions"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-018",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "record-invoice-payments",
+        "financial-reports-and-statements",
+        "invoice-and-payment-problems"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8632384024120344
+    },
+    {
+      "question_id": "en-018",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "record-invoice-payments",
+        "advances-and-bulk-payments",
+        "fleet-billing-and-payments"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-018",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "record-invoice-payments",
+        "invoice-and-payment-problems",
+        "advances-and-bulk-payments"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8632384024120344
+    },
+    {
+      "question_id": "en-019",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "advances-and-bulk-payments",
+        "record-invoice-payments",
+        "payment-accounts-and-ledger"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-019",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "create-and-manage-customers",
+        "walk-in-to-payment",
+        "start-using-sam"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8556934767134874
+    },
+    {
+      "question_id": "en-019",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "first-workshop-job",
+        "create-and-manage-customers",
+        "customer-portal"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-019",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "create-and-manage-customers",
+        "walk-in-to-payment",
+        "advances-and-bulk-payments"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8556934767134874
+    },
+    {
+      "question_id": "en-020",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "expenses-and-other-income",
+        "payment-accounts-and-ledger"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-020",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "payment-accounts-and-ledger",
+        "expenses-and-other-income",
+        "fleet-billing-and-payments"
+      ],
+      "hit_at_3": true,
+      "passage_hit": false,
+      "best_similarity": 0.8647702932357788
+    },
+    {
+      "question_id": "en-020",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "overview",
+        "booking-job-and-stock-problems",
+        "fleet-billing-and-payments"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-020",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "expenses-and-other-income",
+        "dashboard-and-navigation",
+        "overview"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8647702932357788
+    },
+    {
+      "question_id": "en-021",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "transfers-and-supplier-payments",
+        "payment-accounts-and-ledger",
+        "expenses-and-other-income"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-021",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "payment-accounts-and-ledger",
+        "walk-in-to-payment",
+        "transfers-and-supplier-payments"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8788844870856114
+    },
+    {
+      "question_id": "en-021",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "record-invoice-payments",
+        "advances-and-bulk-payments",
+        "review-vat-and-tax-figures"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-021",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "advances-and-bulk-payments",
+        "transfers-and-supplier-payments",
+        "expenses-and-other-income"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8788844870856114
+    },
+    {
+      "question_id": "en-022",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "understand-job-costs",
+        "create-and-manage-work-orders",
+        "create-and-issue-an-invoice"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-022",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "replenish-parts-for-a-job",
+        "walk-in-to-payment",
+        "inspection-to-approved-repair"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.893148845842551
+    },
+    {
+      "question_id": "en-022",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "create-and-approve-job-orders",
+        "rework-and-completion",
+        "booking-job-and-stock-problems"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-022",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "replenish-parts-for-a-job",
+        "create-and-approve-job-orders",
+        "create-and-send-an-estimate"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.893148845842551
+    },
+    {
+      "question_id": "en-023",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "fleet-billing-and-payments",
+        "fleet-accounts-and-drivers",
+        "advances-and-bulk-payments"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-023",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "frequently-asked-questions",
+        "start-using-sam",
+        "walk-in-to-payment"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.873096764087677
+    },
+    {
+      "question_id": "en-023",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "fleet-billing-and-payments",
+        "overview",
+        "create-and-manage-customers"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-023",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "overview",
+        "manage-service-bookings",
+        "fleet-billing-and-payments"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.873096764087677
+    },
+    {
+      "question_id": "en-024",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "maintenance-and-driver-handovers",
+        "booking-job-and-stock-problems",
+        "frequently-asked-questions"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-024",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "booking-job-and-stock-problems",
+        "roles-and-permissions",
+        "replenish-parts-for-a-job"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8552950793153014
+    },
+    {
+      "question_id": "en-024",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "maintenance-and-driver-handovers",
+        "fleet-accounts-and-drivers",
+        "track-technician-work"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-024",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "maintenance-and-driver-handovers",
+        "booking-job-and-stock-problems",
+        "fleet-accounts-and-drivers"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8552950793153014
+    },
+    {
+      "question_id": "en-025",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "manage-insurance-claims",
+        "inspection-to-approved-repair",
+        "create-and-send-an-estimate"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-025",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "manage-insurance-claims",
+        "replenish-parts-for-a-job",
+        "inspection-to-approved-repair"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8885575003291682
+    },
+    {
+      "question_id": "en-025",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "manage-insurance-claims",
+        "inspection-to-approved-repair",
+        "create-and-manage-work-orders"
+      ],
+      "hit_at_3": true,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-025",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "manage-insurance-claims",
+        "inspection-to-approved-repair",
+        "walk-in-to-payment"
+      ],
+      "hit_at_3": true,
+      "passage_hit": false,
+      "best_similarity": 0.8885575003291682
+    },
+    {
+      "question_id": "en-026",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "add-employees-and-share-access",
+        "login-access-and-plan-problems",
+        "sign-in-and-passwords"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-026",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "set-booking-hours-and-holidays",
+        "login-access-and-plan-problems",
+        "book-a-service-online"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8589021051584435
+    },
+    {
+      "question_id": "en-026",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "create-and-manage-work-orders",
+        "payment-accounts-and-ledger",
+        "review-vat-and-tax-figures"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-026",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "create-and-manage-work-orders",
+        "set-booking-hours-and-holidays",
+        "booking-job-and-stock-problems"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8589021051584435
+    },
+    {
+      "question_id": "en-027",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "import-labour-tasks-and-export-data"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-027",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "company-branding-and-preferences",
+        "add-employees-and-share-access",
+        "sign-in-and-passwords"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8402607440948486
+    },
+    {
+      "question_id": "en-027",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "company-branding-and-preferences",
+        "review-vat-and-tax-figures",
+        "frequently-asked-questions"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-027",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "company-branding-and-preferences",
+        "add-employees-and-share-access",
+        "review-vat-and-tax-figures"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8402607440948486
+    },
+    {
+      "question_id": "en-028",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "plans-trials-and-billing",
+        "login-access-and-plan-problems",
+        "frequently-asked-questions"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-028",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "payment-accounts-and-ledger",
+        "fleet-billing-and-payments",
+        "create-service-packages"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8154013376949623
+    },
+    {
+      "question_id": "en-028",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "create-service-packages",
+        "payment-accounts-and-ledger",
+        "record-invoice-payments"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-028",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "payment-accounts-and-ledger",
+        "create-service-packages",
+        "record-invoice-payments"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8154013376949623
+    },
+    {
+      "question_id": "en-029",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "workshop-and-sales-reports",
+        "financial-reports-and-statements"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-029",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "customer-portal",
+        "walk-in-to-payment",
+        "create-and-manage-customers"
+      ],
+      "hit_at_3": true,
+      "passage_hit": false,
+      "best_similarity": 0.8025957345962524
+    },
+    {
+      "question_id": "en-029",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "create-and-manage-customers",
+        "create-and-manage-work-orders",
+        "workshop-and-sales-reports"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-029",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "share-progress-and-inspections",
+        "create-and-manage-work-orders",
+        "create-and-manage-customers"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8025957345962524
+    },
+    {
+      "question_id": "en-030",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "financial-reports-and-statements",
+        "understand-job-costs",
+        "workshop-and-sales-reports"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-030",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "replenish-parts-for-a-job",
+        "financial-reports-and-statements",
+        "dashboard-and-navigation"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8620156049728394
+    },
+    {
+      "question_id": "en-030",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "understand-job-costs",
+        "workshop-and-sales-reports",
+        "financial-reports-and-statements"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-030",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "financial-reports-and-statements",
+        "workshop-and-sales-reports",
+        "create-service-packages"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8620156049728394
+    },
+    {
+      "question_id": "en-031",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "customer-portal",
+        "login-access-and-plan-problems",
+        "sign-in-and-passwords"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-031",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "roles-and-permissions",
+        "company-branding-and-preferences",
+        "login-access-and-plan-problems"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8408697843551636
+    },
+    {
+      "question_id": "en-031",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "customer-portal",
+        "create-and-manage-customers",
+        "first-workshop-job"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-031",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "customer-portal",
+        "sign-in-and-passwords",
+        "login-access-and-plan-problems"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8408697843551636
+    },
+    {
+      "question_id": "en-032",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "rework-and-completion",
+        "create-and-manage-work-orders",
+        "booking-job-and-stock-problems"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-032",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "rework-and-completion",
+        "advances-and-bulk-payments",
+        "replenish-parts-for-a-job"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8622997403144836
+    },
+    {
+      "question_id": "en-032",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "first-workshop-job",
+        "create-and-manage-customers",
+        "overview"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-032",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "rework-and-completion",
+        "booking-job-and-stock-problems",
+        "first-workshop-job"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8622997403144836
+    },
+    {
+      "question_id": "en-033",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "inspection-to-approved-repair",
+        "create-and-send-an-estimate",
+        "manage-labour-tasks"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-033",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "inspection-to-approved-repair",
+        "booking-job-and-stock-problems",
+        "inspect-a-vehicle"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8659094731915625
+    },
+    {
+      "question_id": "en-033",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "booking-job-and-stock-problems",
+        "inspection-to-approved-repair",
+        "create-and-send-an-estimate"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-033",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "inspection-to-approved-repair",
+        "booking-job-and-stock-problems",
+        "inspect-a-vehicle"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8659094731915625
+    },
+    {
+      "question_id": "en-034",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "replenish-parts-for-a-job",
+        "request-and-issue-parts",
+        "adjust-and-review-stock"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-034",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "request-and-issue-parts",
+        "replenish-parts-for-a-job",
+        "walk-in-to-payment"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8457332253456116
+    },
+    {
+      "question_id": "en-034",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "booking-job-and-stock-problems",
+        "book-a-service-online",
+        "manage-service-bookings"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-034",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "request-and-issue-parts",
+        "booking-job-and-stock-problems",
+        "replenish-parts-for-a-job"
+      ],
+      "hit_at_3": true,
+      "passage_hit": false,
+      "best_similarity": 0.8457332253456116
+    },
+    {
+      "question_id": "en-035",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "roles-and-permissions",
+        "add-employees-and-share-access",
+        "manage-service-bookings"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-035",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "manage-service-bookings",
+        "roles-and-permissions",
+        "book-a-service-online"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8670957088470459
+    },
+    {
+      "question_id": "en-035",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "record-invoice-payments",
+        "book-a-service-online",
+        "set-booking-hours-and-holidays"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-035",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "roles-and-permissions",
+        "set-booking-hours-and-holidays",
+        "book-a-service-online"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8670957088470459
+    },
+    {
+      "question_id": "en-036",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "login-access-and-plan-problems",
+        "booking-job-and-stock-problems",
+        "frequently-asked-questions"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-036",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "booking-job-and-stock-problems",
+        "roles-and-permissions",
+        "replenish-parts-for-a-job"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8381209066890064
+    },
+    {
+      "question_id": "en-036",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "create-job-templates",
+        "first-workshop-job",
+        "roles-and-permissions"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-036",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "roles-and-permissions",
+        "create-and-approve-job-orders",
+        "login-access-and-plan-problems"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8381209066890064
+    },
+    {
+      "question_id": "en-037",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "booking-job-and-stock-problems",
+        "manage-service-bookings",
+        "create-and-manage-work-orders"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-037",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "book-a-service-online",
+        "walk-in-to-payment",
+        "sign-in-and-passwords"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8586528981534914
+    },
+    {
+      "question_id": "en-037",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "create-and-approve-job-orders",
+        "overview",
+        "rework-and-completion"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-037",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "rework-and-completion",
+        "book-a-service-online",
+        "create-and-approve-job-orders"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8586528981534914
+    },
+    {
+      "question_id": "en-038",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "invoice-and-payment-problems",
+        "create-and-issue-an-invoice",
+        "booking-job-and-stock-problems"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-038",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "walk-in-to-payment",
+        "replenish-parts-for-a-job",
+        "inspection-to-approved-repair"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8573939374215678
+    },
+    {
+      "question_id": "en-038",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "create-and-issue-an-invoice",
+        "fleet-billing-and-payments",
+        "rework-and-completion"
+      ],
+      "hit_at_3": true,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-038",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "create-and-approve-job-orders",
+        "invoice-and-payment-problems",
+        "inspection-to-approved-repair"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8573939374215678
+    },
+    {
+      "question_id": "en-039",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "email-whatsapp-and-link-problems",
+        "email-settings-and-templates",
+        "print-and-share-documents"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-039",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "email-whatsapp-and-link-problems",
+        "print-and-share-documents",
+        "frequently-asked-questions"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.881204261636226
+    },
+    {
+      "question_id": "en-039",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "create-and-issue-an-invoice",
+        "advances-and-bulk-payments",
+        "email-settings-and-templates"
+      ],
+      "hit_at_3": true,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-039",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "email-whatsapp-and-link-problems",
+        "print-and-share-documents",
+        "record-invoice-payments"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.881204261636226
+    },
+    {
+      "question_id": "en-040",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "track-technician-work",
+        "frequently-asked-questions",
+        "booking-job-and-stock-problems"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-040",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "walk-in-to-payment",
+        "first-workshop-job",
+        "track-technician-work"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8311403494393632
+    },
+    {
+      "question_id": "en-040",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "rework-and-completion",
+        "overview",
+        "create-and-approve-job-orders"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "en-040",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "booking-job-and-stock-problems",
+        "create-and-approve-job-orders",
+        "track-technician-work"
+      ],
+      "hit_at_3": true,
+      "passage_hit": true,
+      "best_similarity": 0.8311403494393632
+    },
+    {
+      "question_id": "na-001",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "frequently-asked-questions",
+        "overview",
+        "financial-reports-and-statements"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "na-001",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "payment-accounts-and-ledger",
+        "frequently-asked-questions",
+        "walk-in-to-payment"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8528203368186951
+    },
+    {
+      "question_id": "na-001",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "payment-accounts-and-ledger",
+        "email-whatsapp-and-link-problems",
+        "fleet-billing-and-payments"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "na-001",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "payment-accounts-and-ledger",
+        "print-and-share-documents",
+        "email-whatsapp-and-link-problems"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8528203368186951
+    },
+    {
+      "question_id": "na-002",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "overview",
+        "frequently-asked-questions",
+        "track-technician-work"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "na-002",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "overview",
+        "add-and-manage-vehicles",
+        "maintenance-and-driver-handovers"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8164793958378213
+    },
+    {
+      "question_id": "na-002",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "create-and-manage-customers",
+        "email-whatsapp-and-link-problems",
+        "book-a-service-online"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "na-002",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "messaging-and-campaigns",
+        "manage-service-bookings",
+        "book-a-service-online"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8164793958378213
+    },
+    {
+      "question_id": "na-003",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "create-and-manage-customers",
+        "frequently-asked-questions"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "na-003",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "manage-service-bookings",
+        "walk-in-to-payment",
+        "replenish-parts-for-a-job"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8608202421176304
+    },
+    {
+      "question_id": "na-003",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "create-and-manage-customers",
+        "first-workshop-job",
+        "create-and-manage-work-orders"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "na-003",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "share-progress-and-inspections",
+        "create-and-manage-work-orders",
+        "manage-service-bookings"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8608202421176304
+    },
+    {
+      "question_id": "na-004",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "frequently-asked-questions",
+        "overview",
+        "plans-trials-and-billing"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "na-004",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "payment-accounts-and-ledger",
+        "start-using-sam",
+        "use-sami"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8419857119330354
+    },
+    {
+      "question_id": "na-004",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "payment-accounts-and-ledger",
+        "overview",
+        "booking-job-and-stock-problems"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "na-004",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "payment-accounts-and-ledger",
+        "booking-job-and-stock-problems",
+        "fleet-accounts-and-drivers"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8419857119330354
+    },
+    {
+      "question_id": "na-005",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "plans-trials-and-billing",
+        "overview"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "na-005",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "walk-in-to-payment",
+        "replenish-parts-for-a-job",
+        "overview"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8480612220691178
+    },
+    {
+      "question_id": "na-005",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "overview",
+        "customer-portal",
+        "start-using-sam"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "na-005",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "overview",
+        "start-using-sam",
+        "create-service-packages"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8480612220691178
+    },
+    {
+      "question_id": "na-006",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "maintenance-and-driver-handovers",
+        "inspect-a-vehicle",
+        "create-and-manage-work-orders"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "na-006",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "overview",
+        "walk-in-to-payment",
+        "frequently-asked-questions"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8313174247741699
+    },
+    {
+      "question_id": "na-006",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "create-and-manage-customers",
+        "first-workshop-job",
+        "create-and-send-an-estimate"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "na-006",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "walk-in-to-payment",
+        "share-progress-and-inspections",
+        "manage-service-bookings"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8313174247741699
+    },
+    {
+      "question_id": "na-007",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "payment-accounts-and-ledger",
+        "record-invoice-payments",
+        "frequently-asked-questions"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "na-007",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "frequently-asked-questions",
+        "walk-in-to-payment",
+        "plans-trials-and-billing"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8538806612633931
+    },
+    {
+      "question_id": "na-007",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "record-invoice-payments",
+        "fleet-billing-and-payments",
+        "advances-and-bulk-payments"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "na-007",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "record-invoice-payments",
+        "frequently-asked-questions",
+        "fleet-billing-and-payments"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8538806612633931
+    },
+    {
+      "question_id": "na-008",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "messaging-and-campaigns",
+        "maintenance-and-driver-handovers",
+        "use-sami"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "na-008",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "overview",
+        "add-employees-and-share-access",
+        "share-progress-and-inspections"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.851038353237959
+    },
+    {
+      "question_id": "na-008",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "overview",
+        "create-and-manage-customers",
+        "first-workshop-job"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "na-008",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "share-progress-and-inspections",
+        "walk-in-to-payment",
+        "create-and-manage-customers"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.851038353237959
+    },
+    {
+      "question_id": "na-009",
+      "split": "dev",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "frequently-asked-questions",
+        "overview"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "na-009",
+      "split": "dev",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "advances-and-bulk-payments",
+        "add-employees-and-share-access",
+        "fleet-accounts-and-drivers"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8262856006622314
+    },
+    {
+      "question_id": "na-009",
+      "split": "dev",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "login-access-and-plan-problems",
+        "overview",
+        "sign-in-and-passwords"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "na-009",
+      "split": "dev",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "overview",
+        "roles-and-permissions",
+        "plans-trials-and-billing"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8262856006622314
+    },
+    {
+      "question_id": "na-010",
+      "split": "test",
+      "method": "title_picking",
+      "refused": false,
+      "slugs": [
+        "request-and-issue-parts",
+        "add-products-and-opening-stock",
+        "frequently-asked-questions"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "na-010",
+      "split": "test",
+      "method": "vector",
+      "refused": false,
+      "slugs": [
+        "replenish-parts-for-a-job",
+        "create-and-send-an-estimate",
+        "request-and-issue-parts"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8621535979417817
+    },
+    {
+      "question_id": "na-010",
+      "split": "test",
+      "method": "keyword",
+      "refused": false,
+      "slugs": [
+        "create-and-approve-job-orders",
+        "understand-job-costs",
+        "replenish-parts-for-a-job"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": null
+    },
+    {
+      "question_id": "na-010",
+      "split": "test",
+      "method": "hybrid",
+      "refused": false,
+      "slugs": [
+        "replenish-parts-for-a-job",
+        "create-and-approve-job-orders",
+        "request-and-issue-parts"
+      ],
+      "hit_at_3": false,
+      "passage_hit": false,
+      "best_similarity": 0.8621535979417817
+    }
+  ]
+}
