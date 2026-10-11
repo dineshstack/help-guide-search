@@ -1,11 +1,13 @@
-# Postgres with pgvector, plus an "app" image for one-off commands.
+# Postgres with pgvector, the HTTP API, and a "tools" image for one-off commands.
 #
-#   docker compose up -d db                                   start the database
-#   docker compose run --rm app python -m guide_search.ingest  build the index
-#   docker compose run --rm app pytest -m integration -q       run the integration tests
-#   docker compose down                                        stop; the data volumes are kept
+#   docker compose up -d --wait db                                          start the database
+#   docker compose --profile tools run --rm tools python -m guide_search.ingest   build the index
+#   docker compose up -d --wait api                                         start the API
+#   docker compose --profile tools run --rm tools pytest -m integration -q  run the integration tests
+#   docker compose down                                                     stop; the data is kept
 #
-# POSTGRES_PASSWORD comes from a .env file next to this file. It is never committed.
+# POSTGRES_PASSWORD and READER_PASSWORD come from a .env file next to this
+# file. It is never committed.
 name: help-guide-search
 
 services:
@@ -15,6 +17,8 @@ services:
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?put POSTGRES_PASSWORD in .env}
       POSTGRES_DB: guides
+      # Used once, by docker/initdb, to create the read-only account.
+      READER_PASSWORD: ${READER_PASSWORD:?put READER_PASSWORD in .env}
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/initdb:/docker-entrypoint-initdb.d:ro
@@ -29,21 +33,48 @@ services:
     mem_limit: 1g
     cpus: 1.0
 
-  app:
-    build: .
-    # Only started when asked for by name (docker compose run app ...).
+  api:
+    build:
+      context: .
+      target: runtime
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # The service connects as the account that can only read.
+      DATABASE_URL: postgresql://guides_reader:${READER_PASSWORD}@db:5432/guides
+      # Only the answer agent needs a key. Without one, search still works.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # The container may use 2 CPUs (below). Without this the model would start
+      # one thread per core of the whole machine and they would get in each other's way.
+      OMP_NUM_THREADS: "2"
+    ports:
+      # Reachable from this machine only, never from the network.
+      - "127.0.0.1:8765:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    mem_limit: 3g
+    cpus: 2.0
+
+  tools:
+    build:
+      context: .
+      target: tools
+    # Only started when asked for by name (docker compose run tools ...).
     profiles: ["tools"]
     depends_on:
       db:
         condition: service_healthy
     environment:
+      # Ingestion and the tests write, so they connect as the owner.
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/guides
       TEST_DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/guides_test
-      # The container may use 2 CPUs (below). Without this the model would start
-      # one thread per core of the whole machine and they would get in each other's way.
       OMP_NUM_THREADS: "2"
     volumes:
-      - models:/models
       # The report and results are written here, so they land on the host.
       - ./evaluation:/app/evaluation
       # The threshold lives here. Shared, so choosing it in a container is kept.
@@ -53,4 +84,3 @@ services:
 
 volumes:
   pgdata: {}
-  models: {}

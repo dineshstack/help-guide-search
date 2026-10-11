@@ -1,26 +1,63 @@
-# Stage 1 image: a place to run one-off commands (ingestion, the integration
-# tests, the evaluation) with the same Python and libraries everywhere.
-# Stage 4 turns this into a finished service image.
-FROM python:3.13-slim
+# Two images from one file.
+#
+#   runtime   the code, its libraries and the embedding model. No tests.
+#             Runs the HTTP API by default, as an ordinary user.
+#   tools     runtime plus the tests and their libraries, for the integration
+#             tests and the evaluation.
+#
+# compose.yaml builds both: "api" from runtime, "tools" from tools.
+
+FROM python:3.13-slim AS runtime
 
 # uv installs the locked dependencies. Use the same uv version that wrote uv.lock.
 COPY --from=ghcr.io/astral-sh/uv:0.12.0 /uv /bin/uv
 
 WORKDIR /app
 
-# HF_HOME is where the embedding model is cached; compose.yaml mounts a volume
-# there so a new container does not download it again.
+# HF_HOME is where the embedding model is kept inside the image.
 ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
-    HF_HOME=/models \
+    HF_HOME=/opt/models \
     PATH="/app/.venv/bin:$PATH"
 
-# Dependencies first, so this slow layer is reused until pyproject.toml or uv.lock change.
+# Dependencies first, so this slow layer is reused until pyproject.toml or
+# uv.lock change. --no-dev leaves out the test libraries.
 COPY pyproject.toml uv.lock ./
-RUN uv sync --locked --no-install-project
+RUN uv sync --locked --no-install-project --no-dev
 
-# Then the project itself.
-COPY . .
+# Then the project itself: the code, the settings and the guides.
+COPY README.md LICENSE settings.toml agent.toml ./
+COPY src ./src
+COPY data ./data
+RUN uv sync --locked --no-dev
+
+# An ordinary user to run as. It owns the model folder and one folder it may
+# write to (the agent's token records); the program files stay read-only to it.
+RUN useradd --create-home --uid 10001 app \
+    && mkdir -p /opt/models /app/var \
+    && chown app /opt/models /app/var
+USER app
+
+# Download the embedding model into the image, at the revision pinned in
+# e5.py. A container then starts without downloading anything.
+RUN python -c "from guide_search.e5 import E5Embedder; E5Embedder()"
+
+# From here on the model's host is never contacted.
+ENV HF_HUB_OFFLINE=1 \
+    USAGE_LOG=/app/var/usage.jsonl
+
+EXPOSE 8000
+CMD ["uvicorn", "guide_search.service:build", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+
+
+FROM runtime AS tools
+
+# The tools image runs as root on purpose: the evaluation writes its report
+# into a folder shared with the host, which the ordinary user could not do.
+USER root
+COPY tests ./tests
+COPY scripts ./scripts
+COPY evaluation ./evaluation
 RUN uv sync --locked
 
-CMD ["python", "-m", "guide_search.ingest"]
+CMD ["pytest", "-q"]

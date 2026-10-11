@@ -16,6 +16,7 @@ Neither is ever turned into an empty search result. "We could not look" and
 
 import psycopg
 from pgvector.psycopg import register_vector
+from psycopg import sql
 
 # How long to wait for Postgres to answer before giving up. Without a limit,
 # an address that never answers would keep a request waiting for minutes.
@@ -87,9 +88,26 @@ def connect(url: str, read_only: bool = False) -> psycopg.Connection:
     return conn
 
 
+# The database account the service connects as. It may read the passages
+# table and nothing else. docker/initdb creates it; where it does not exist
+# (a plain development database) everything works without it.
+READER_ROLE = "guides_reader"
+
+
+def grant_read_access(conn: psycopg.Connection, role: str = READER_ROLE) -> bool:
+    """Let the read-only account read the passages table. Returns whether that account exists."""
+    exists = conn.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (role,)).fetchone() is not None
+    if exists:
+        # sql.Identifier writes the name safely into the statement; a name
+        # cannot be passed as an ordinary %s value.
+        conn.execute(sql.SQL("GRANT SELECT ON passages TO {}").format(sql.Identifier(role)))
+    return exists
+
+
 def ensure_schema(conn: psycopg.Connection) -> None:
     """Create the extension, the table and the index if they do not exist."""
     conn.execute(SCHEMA_SQL)
+    grant_read_access(conn)
     # register_vector teaches this connection to send and read vectors. It
     # looks the vector type up in the database, so it only works once the
     # extension exists, and it must come before any cursor that is kept and

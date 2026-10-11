@@ -1,0 +1,139 @@
+# Runs on every push to main and on every pull request.
+#
+# Four jobs: the unit tests, the integration tests against the pinned Postgres,
+# the evaluation gate, and a build-and-start check of the Docker images.
+#
+# There are no secrets here and no model is ever called: the only password in
+# this file belongs to a throwaway database that lives for one job.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch makes the older run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+      - run: uv sync --locked --group dev
+      - run: uv run pytest -q
+
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        # The same pinned image as compose.yaml.
+        image: pgvector/pgvector:0.8.7-pg16@sha256:7b822b0aac60967beb1ea5e576b8602c94c300a157d187f385ae3e0da199b90a
+        env:
+          POSTGRES_PASSWORD: ci-only-not-a-secret
+          POSTGRES_DB: guides_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:ci-only-not-a-secret@localhost:5432/guides_test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+      - run: uv sync --locked --group dev
+      - run: uv run pytest -m integration -q
+
+  gate:
+    name: Evaluation gate
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.7-pg16@sha256:7b822b0aac60967beb1ea5e576b8602c94c300a157d187f385ae3e0da199b90a
+        env:
+          POSTGRES_PASSWORD: ci-only-not-a-secret
+          POSTGRES_DB: guides
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:ci-only-not-a-secret@localhost:5432/guides
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+      - run: uv sync --locked --group dev
+      # The embedding model is about 0.5 GB. Keep it between runs; the key
+      # changes only when the pinned revision does.
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/huggingface
+          key: embedding-model-614241f622f53c4eeff9890bdc4f31cfecc418b3
+      - name: Tests with the real embedding model
+        run: uv run pytest -m model -q
+      - name: Build the index from the committed guides
+        run: uv run python -m guide_search.ingest
+      - name: Search still produces the committed results
+        run: uv run python -m guide_search.evaluation.gate
+
+  containers:
+    name: Docker images build and start
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Two throwaway database passwords
+        run: printf 'POSTGRES_PASSWORD=%s\nREADER_PASSWORD=%s\n' "$(openssl rand -hex 16)" "$(openssl rand -hex 16)" > .env
+      - name: Build both images
+        run: docker compose --profile tools build api tools
+      - name: Start the database
+        run: docker compose up -d --wait db
+      - name: Build the index
+        run: docker compose --profile tools run --rm tools python -m guide_search.ingest
+      - name: Start the API and wait until it is healthy
+        run: docker compose up -d --wait api
+      - name: The API answers a search
+        run: |
+          curl --fail --silent --show-error http://127.0.0.1:8765/health
+          curl --fail --silent --show-error "http://127.0.0.1:8765/search?q=how+do+I+reset+my+password" \
+            | python3 -c "import json, sys; found = json.load(sys.stdin); print([g['slug'] for g in found['guides']]); assert found['guides']"
+      - name: The API does not run as root
+        run: test "$(docker compose exec -T api id -u)" != "0"
+      - name: The API's database account cannot change the index
+        run: |
+          docker compose exec -T api python -c "
+          import os, psycopg
+          with psycopg.connect(os.environ['DATABASE_URL']) as conn:
+              print('rows it can read:', conn.execute('SELECT count(*) FROM passages').fetchone()[0])
+              try:
+                  conn.execute('DELETE FROM passages')
+              except psycopg.errors.InsufficientPrivilege:
+                  print('refused to delete, as it should be')
+              else:
+                  raise SystemExit('the read-only account was allowed to delete')
+          "
+      - name: What the API logged
+        if: always()
+        run: docker compose logs api | tail -40
+      - name: Stop everything
+        if: always()
+        run: docker compose down --volumes

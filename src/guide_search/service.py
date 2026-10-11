@@ -126,9 +126,10 @@ def real_service() -> Service:
         from guide_search.drafting import ClaudeDrafter, load_agent_settings, real_client
 
         drafter = ClaudeDrafter(real_client(), load_agent_settings())
-    return Service(
-        config.database_url(), E5Embedder(), config.load_settings(), drafter, DEFAULT_USAGE_LOG
-    )
+    # USAGE_LOG lets a container, whose program folder cannot be written to,
+    # put the token records somewhere that can.
+    usage_log = Path(os.environ.get("USAGE_LOG", "").strip() or DEFAULT_USAGE_LOG)
+    return Service(config.database_url(), E5Embedder(), config.load_settings(), drafter, usage_log)
 
 
 def build() -> FastAPI:
