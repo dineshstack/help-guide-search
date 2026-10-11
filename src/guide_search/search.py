@@ -29,6 +29,7 @@ from guide_search.ranking import (
     CANDIDATES,
     Candidate,
     GuideDetail,
+    GuideSummary,
     PassageHit,
     SearchResult,
     group_by_guide,
@@ -74,6 +75,14 @@ GUIDE_SQL = """
     FROM passages
     WHERE slug = %s
     ORDER BY position
+"""
+
+# Every passage row carries its guide's id, slug, title and url, so the list
+# of guides is those four columns with the repeats removed.
+LIST_SQL = """
+    SELECT DISTINCT guide_id, slug, title, url
+    FROM passages
+    ORDER BY guide_id
 """
 
 
@@ -142,6 +151,12 @@ def read_guide(conn: psycopg.Connection, slug: str) -> GuideDetail | None:
     return GuideDetail(
         guide_id=guide_id, slug=guide_slug, title=title, url=url, passages=passages
     )
+
+
+def list_guides(conn: psycopg.Connection) -> list[GuideSummary]:
+    """Return every guide in the index, in guide id order."""
+    rows = conn.execute(LIST_SQL).fetchall()
+    return [GuideSummary(guide_id=row[0], slug=row[1], title=row[2], url=row[3]) for row in rows]
 
 
 def _found(

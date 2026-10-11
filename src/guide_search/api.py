@@ -21,12 +21,9 @@ from typing import Any, Protocol
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from guide_search.ranking import GuideDetail, SearchResult
+from guide_search.ranking import MAX_QUESTION_CHARS, GuideDetail, SearchResult, clean_question
 from guide_search.search import MODES
 from guide_search.store import DatabaseUnavailable, IndexNotReady
-
-# The longest question that is accepted, counted after trimming.
-MAX_QUESTION_CHARS = 500
 
 
 class Backend(Protocol):
@@ -67,12 +64,15 @@ def create_app(backend: Backend) -> FastAPI:
 
     @app.get("/search")
     def search_route(q: str, mode: str | None = None) -> dict[str, Any]:
-        question = q.strip()
-        if question == "" or len(question) > MAX_QUESTION_CHARS:
+        # The rule for a valid question lives in one place, clean_question,
+        # which the MCP tool uses as well.
+        try:
+            question = clean_question(q)
+        except ValueError:
             raise HTTPException(
                 status_code=422,
                 detail=f"q must be 1 to {MAX_QUESTION_CHARS} characters",
-            )
+            ) from None
         # No mode is fine: the backend then uses the default from the settings.
         if mode is not None and mode not in MODES:
             raise HTTPException(

@@ -10,7 +10,8 @@ This file answers four small questions:
   up to two passages each (group_by_guide).
 
 It also defines the shapes that search hands back, so that the search code, the
-HTTP routes and the evaluation all use the same ones.
+HTTP routes, the MCP tools and the evaluation all use the same ones, and the
+one rule for which questions are accepted (clean_question).
 
 Nothing here talks to Postgres or to the embedding model, so every rule can be
 tested with a few invented values.
@@ -30,6 +31,9 @@ CANDIDATES = 20
 # passages.
 MAX_GUIDES = 3
 MAX_PASSAGES = 2
+
+# The longest question that is accepted, counted after trimming.
+MAX_QUESTION_CHARS = 500
 
 
 @dataclass(frozen=True)
@@ -89,6 +93,35 @@ class GuideDetail:
     title: str
     url: str
     passages: list[PassageHit]  # in position order, similarity None
+
+
+@dataclass(frozen=True)
+class GuideSummary:
+    """One guide in the list of all guides: enough to name it and to link to it."""
+
+    guide_id: int
+    slug: str
+    title: str
+    url: str
+
+
+@dataclass(frozen=True)
+class GuideList:
+    """Every guide in the index, in guide id order."""
+
+    guides: list[GuideSummary]
+
+
+def clean_question(question: str) -> str:
+    """Return the question without the spaces around it, or raise ValueError.
+
+    The HTTP route and the MCP tool both call this, so the two can never
+    disagree about which questions are accepted.
+    """
+    trimmed = question.strip()
+    if trimmed == "" or len(trimmed) > MAX_QUESTION_CHARS:
+        raise ValueError(f"the question must be 1 to {MAX_QUESTION_CHARS} characters")
+    return trimmed
 
 
 def question_words(question: str) -> list[str]:

@@ -35,3 +35,26 @@ uv run pytest
 ```
 
 The unit tests need no database, no model download and no network.
+
+## Using it from an AI assistant (MCP)
+
+The search is also offered to AI assistants as three read-only tools, through
+the Model Context Protocol:
+
+| Tool | What it does |
+| --- | --- |
+| `search_guides` | Finds the passages that best match a question |
+| `read_guide` | Returns one whole guide, by its slug |
+| `list_guides` | Lists every guide with its public page address |
+
+The assistant starts the server itself, as a child process. Give it this
+command, with the path of this folder:
+
+```bash
+uv run --directory /path/to/help-guide-search --env-file .env python -m guide_search.mcp_server
+```
+
+Postgres must be reachable at the `DATABASE_URL` in `.env`, with the index
+already built. The server takes about ten seconds to start, because it loads
+the embedding model first. It only reads: its database connections are opened
+read-only, so Postgres itself refuses any write.

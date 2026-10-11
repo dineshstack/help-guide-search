@@ -262,8 +262,8 @@ def test_every_call_opens_one_connection_and_closes_it(
     opened: list[psycopg.Connection] = []
     real_connect = service_module.connect
 
-    def remembering_connect(url: str) -> psycopg.Connection:
-        connection = real_connect(url)
+    def remembering_connect(url: str, read_only: bool = False) -> psycopg.Connection:
+        connection = real_connect(url, read_only=read_only)
         opened.append(connection)
         return connection
 

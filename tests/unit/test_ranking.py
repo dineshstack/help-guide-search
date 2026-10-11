@@ -8,9 +8,11 @@ All guides and passages are invented.
 import pytest
 
 from guide_search.ranking import (
+    MAX_QUESTION_CHARS,
     Candidate,
     GuideHit,
     PassageHit,
+    clean_question,
     group_by_guide,
     order_candidates,
     question_words,
@@ -427,3 +429,31 @@ def test_group_uses_the_limits_it_is_given():
     guides = group_by_guide(candidates, max_guides=1, max_passages=1)
     assert [guide.guide_id for guide in guides] == [1]
     assert [passage.position for passage in guides[0].passages] == [0]
+
+
+# ---------------------------------------------------------------------------
+# clean_question: the one rule for which questions are accepted
+# ---------------------------------------------------------------------------
+
+
+def test_clean_question_removes_the_spaces_around_a_question():
+    assert clean_question("  how do I mend a sail \n") == "how do I mend a sail"
+
+
+@pytest.mark.parametrize("question", ["", "   ", "\n\t"])
+def test_clean_question_refuses_a_question_with_nothing_in_it(question: str):
+    with pytest.raises(ValueError):
+        clean_question(question)
+
+
+def test_clean_question_counts_the_length_after_trimming():
+    assert clean_question(" " + "x" * MAX_QUESTION_CHARS + " ") == "x" * MAX_QUESTION_CHARS
+
+    with pytest.raises(ValueError):
+        clean_question("x" * (MAX_QUESTION_CHARS + 1))
+
+
+def test_clean_question_counts_characters_not_bytes():
+    arabic = "س" * MAX_QUESTION_CHARS
+
+    assert clean_question(arabic) == arabic

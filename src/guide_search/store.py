@@ -55,9 +55,10 @@ class IndexNotReady(Exception):
     """The table is missing, or holds no passages for the embedding model in use."""
 
 
-def connect(url: str) -> psycopg.Connection:
+def connect(url: str, read_only: bool = False) -> psycopg.Connection:
     """Open a connection to Postgres that is ready for this project's queries.
 
+    With read_only=True, Postgres refuses every write on this connection.
     Raises DatabaseUnavailable when Postgres cannot be reached.
     """
     try:
@@ -72,6 +73,12 @@ def connect(url: str) -> psycopg.Connection:
     # Postgres sends a NOTICE for every word that is too common to search for
     # ("the", "of"). Those notices are expected, so ask not to be sent them.
     conn.execute("SET client_min_messages = warning")
+
+    # Search only ever reads. Saying so to Postgres turns that from a promise
+    # in this code into something the database enforces: after this
+    # statement it refuses any insert, update, delete or table change here.
+    if read_only:
+        conn.execute("SET default_transaction_read_only = on")
 
     # A brand-new database has no vector type yet. ensure_schema creates it
     # and then does this step itself.

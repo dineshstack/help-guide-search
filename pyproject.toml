@@ -14,6 +14,9 @@ dependencies = [
     "pgvector>=0.5",
     "sentence-transformers>=6.1,<7",
     "torch>=2.14",
+    # Pinned exactly: FastMCP's own documentation says small releases may
+    # change behaviour.
+    "fastmcp==4.1.0",
 ]
 
 # Extra tools that the search itself does not need.
