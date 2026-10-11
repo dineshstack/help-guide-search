@@ -58,3 +58,21 @@ Postgres must be reachable at the `DATABASE_URL` in `.env`, with the index
 already built. The server takes about ten seconds to start, because it loads
 the embedding model first. It only reads: its database connections are opened
 read-only, so Postgres itself refuses any write.
+
+## The answer agent
+
+The agent takes one question and returns an answer from the guides with its
+sources, a question back, or a hand-over to a person. A Claude model writes
+the draft, and plain code checks it before anything is returned: an answer
+must cite guides that search actually found, and every number and link in it
+must appear in the passages of those guides.
+
+```bash
+uv run --env-file .env python -m guide_search.agent "how do I reset my password"
+```
+
+It needs `ANTHROPIC_API_KEY` in `.env`, and Postgres with the index built. The
+model and its settings are in `agent.toml`. The same thing is offered over
+HTTP as `POST /answer` with `{"question": "..."}`.
+
+How it did on the evaluation questions is in `evaluation/agent_report.md`.
