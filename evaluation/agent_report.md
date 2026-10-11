@@ -8,7 +8,7 @@ Stage 1 found that search never refuses: it returns its three closest guides eve
 - Models: `claude-fable-5-1`, `claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5`; effort: medium; every other request setting at its default.
 - Each question was asked once per model. Run dates: 2026-10-11.
 - Search: the default mode with the committed threshold. The agent sees up to 3 guides with up to 2 passages each.
-- Instructions: the version with hash `916a906d0da7`. They were adjusted on `dev` only.
+- Instructions: the version with hash `916a906d0da7`. Every result counted here was produced by this version; any adjustment to it is made on `dev` only.
 
 ## How to read the tables
 
@@ -100,7 +100,7 @@ The `test` questions played no part in writing the instructions.
 
 ## Results on dev
 
-The instructions were adjusted while looking at these questions.
+These are the questions the instructions may be adjusted on.
 
 | Model | Answered, citing an expected guide | Answered, citing only other guides | Handed over or asked back | Unanswerable: declined | Unanswerable: answered | Needed a rewrite | Tokens per question (in / out) | Cost per 100 questions |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |

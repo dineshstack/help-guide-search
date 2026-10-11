@@ -222,7 +222,8 @@ def render_report(questions: list[Question], lines: list[dict]) -> str:
         "every other request setting at its default.",
         f"- Each question was asked once per model. Run dates: {', '.join(dates) or '-'}.",
         "- Search: the default mode with the committed threshold. The agent sees up to 3 guides with up to 2 passages each.",
-        f"- Instructions: the version with hash `{instructions_hash()[:12]}`. They were adjusted on `dev` only.",
+        f"- Instructions: the version with hash `{instructions_hash()[:12]}`. Every result counted here was produced by this version; "
+        "any adjustment to it is made on `dev` only.",
         "",
         "## How to read the tables",
         "",
@@ -234,7 +235,7 @@ def render_report(questions: list[Question], lines: list[dict]) -> str:
         "- **Cost** is estimated from the token counts and the public prices of 11 October 2026.",
         "",
     ]
-    for split, note in (("test", "The `test` questions played no part in writing the instructions."), ("dev", "The instructions were adjusted while looking at these questions.")):
+    for split, note in (("test", "The `test` questions played no part in writing the instructions."), ("dev", "These are the questions the instructions may be adjusted on.")):
         out += [f"## Results on {split}", "", note, ""]
         out += split_table(questions, kept, models, split)
         out += ["", f"### Results on {split} that are not what one would want", ""]
