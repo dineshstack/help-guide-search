@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.0
         with:
           enable-cache: true
       - run: uv sync --locked --group dev
@@ -53,7 +53,7 @@ jobs:
       TEST_DATABASE_URL: postgresql://postgres:ci-only-not-a-secret@localhost:5432/guides_test
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.0
         with:
           enable-cache: true
       - run: uv sync --locked --group dev
@@ -79,7 +79,7 @@ jobs:
       DATABASE_URL: postgresql://postgres:ci-only-not-a-secret@localhost:5432/guides
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.0
         with:
           enable-cache: true
       - run: uv sync --locked --group dev
