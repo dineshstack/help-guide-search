@@ -17,3 +17,5 @@ dist/
 
 # macOS folder settings
 .DS_Store
+# Token use of the answer agent, one line per model call. Local only.
+usage.jsonl

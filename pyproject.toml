@@ -17,6 +17,9 @@ dependencies = [
     # Pinned exactly: FastMCP's own documentation says small releases may
     # change behaviour.
     "fastmcp==4.1.0",
+    # The answer agent: LangGraph runs its loop, the Anthropic SDK calls Claude.
+    "langgraph>=1.2,<2",
+    "anthropic>=1,<2",
 ]
 
 # Extra tools that the search itself does not need.
@@ -24,7 +27,9 @@ dependencies = [
 [dependency-groups]
 # httpx2 is what FastAPI's test client is built on.
 dev = ["pytest>=9", "httpx2>=2.13"]
-baseline = ["anthropic>=1,<2"]
+# Kept so that older commands with "--group baseline" still work. The Anthropic
+# SDK is a normal dependency now that the answer agent needs it.
+baseline = []
 localdb = ["pixeltable-pgserver>=0.6"]
 
 [build-system]

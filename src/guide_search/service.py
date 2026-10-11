@@ -13,13 +13,17 @@ To run the web server:
 itself. The model is loaded once, inside build(), when the server starts.
 """
 
+import os
 import threading
+from pathlib import Path
 
 import psycopg
 from fastapi import FastAPI
 
 from guide_search import config
+from guide_search.agent import DEFAULT_USAGE_LOG, Agent, AgentNotConfigured, AgentResult
 from guide_search.api import create_app
+from guide_search.drafting import Drafter
 from guide_search.embedding import Embedder
 from guide_search.ranking import GuideDetail, GuideList, SearchResult
 from guide_search.search import list_guides, read_guide
@@ -30,10 +34,22 @@ from guide_search.store import DatabaseUnavailable, connect, count_passages
 class Service:
     """Answers the three routes. This is the real `Backend` of api.py."""
 
-    def __init__(self, database_url: str, embedder: Embedder, settings: config.Settings) -> None:
+    def __init__(
+        self,
+        database_url: str,
+        embedder: Embedder,
+        settings: config.Settings,
+        drafter: Drafter | None = None,
+        usage_log: Path | None = None,
+    ) -> None:
         self.database_url = database_url
         self.embedder = embedder
         self.settings = settings
+        # The answer agent is optional. Without a model for it, search, the
+        # guide routes and the MCP tools all still work.
+        self.agent: Agent | None = None
+        if drafter is not None:
+            self.agent = Agent(self._search_for_agent, drafter, usage_log)
         # The web server runs requests that arrive together in separate
         # threads, and they all share the one embedder. A model is not safe to
         # use from two threads at once, so searches take turns.
@@ -71,6 +87,17 @@ class Service:
         except psycopg.OperationalError as error:
             raise DatabaseUnavailable(f"the database stopped answering: {error}") from error
 
+    def _search_for_agent(self, question: str) -> SearchResult:
+        # The agent searches exactly as GET /search does with no mode given.
+        return self.search(question, None)
+
+    def answer(self, question: str) -> AgentResult:
+        if self.agent is None:
+            raise AgentNotConfigured(
+                "The answer agent has no model to use. Set ANTHROPIC_API_KEY and start again."
+            )
+        return self.agent.answer(question)
+
     def guides(self) -> GuideList:
         try:
             with connect(self.database_url, read_only=True) as conn:
@@ -88,11 +115,22 @@ class Service:
             raise DatabaseUnavailable(f"the database stopped answering: {error}") from error
 
 
-def build() -> FastAPI:
-    """Build the web application with the real model. uvicorn calls this once."""
+def real_service() -> Service:
+    """Build the service with the real embedding model, and the answer agent if it has a key."""
     # Imported here and not at the top, because this import loads torch, which
     # takes seconds. Importing this module must stay quick.
     from guide_search.e5 import E5Embedder
 
-    service = Service(config.database_url(), E5Embedder(), config.load_settings())
-    return create_app(service)
+    drafter = None
+    if os.environ.get("ANTHROPIC_API_KEY", "").strip():
+        from guide_search.drafting import ClaudeDrafter, load_agent_settings, real_client
+
+        drafter = ClaudeDrafter(real_client(), load_agent_settings())
+    return Service(
+        config.database_url(), E5Embedder(), config.load_settings(), drafter, DEFAULT_USAGE_LOG
+    )
+
+
+def build() -> FastAPI:
+    """Build the web application with the real model. uvicorn calls this once."""
+    return create_app(real_service())

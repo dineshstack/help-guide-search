@@ -1,8 +1,9 @@
-"""The HTTP routes: three read-only addresses that answer with JSON.
+"""The HTTP routes: four addresses that answer with JSON.
 
 - GET /search?q=...&mode=...   the search result for a question
 - GET /guides/{slug}           one guide's title, URL and passages, in order
 - GET /health                  whether search is ready to answer
+- POST /answer                 an answer from the guides, a question back, or a hand-over
 
 This file knows about HTTP and nothing else. It opens no database connection
 and loads no model. The real work is done by a "backend" object that is handed
@@ -20,7 +21,9 @@ from typing import Any, Protocol
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
+from guide_search.agent import AgentNotConfigured, AgentResult
 from guide_search.ranking import MAX_QUESTION_CHARS, GuideDetail, SearchResult, clean_question
 from guide_search.search import MODES
 from guide_search.store import DatabaseUnavailable, IndexNotReady
@@ -37,13 +40,24 @@ class Backend(Protocol):
     # when not.
     def health(self) -> None: ...
 
+    # Raises AgentNotConfigured when the answer agent has no model to use.
+    def answer(self, question: str) -> AgentResult: ...
+
+
+class AnswerRequest(BaseModel):
+    """The body of POST /answer."""
+
+    question: str
+
 
 def service_unavailable(request: Request, error: Exception) -> JSONResponse:
-    """Answer 503 and name which of the two database problems it was."""
+    """Answer 503 and name what could not be used."""
     # FastAPI hands every error handler the request as well. It is not needed
     # here, because the answer depends only on the kind of error.
     if isinstance(error, IndexNotReady):
         name = "index_not_ready"
+    elif isinstance(error, AgentNotConfigured):
+        name = "agent_not_configured"
     else:
         name = "database_unavailable"
     return JSONResponse(status_code=503, content={"error": name})
@@ -57,6 +71,7 @@ def create_app(backend: Backend) -> FastAPI:
     # itself: it lets them rise, and FastAPI calls the handler.
     app.add_exception_handler(DatabaseUnavailable, service_unavailable)
     app.add_exception_handler(IndexNotReady, service_unavailable)
+    app.add_exception_handler(AgentNotConfigured, service_unavailable)
 
     # The routes are plain "def", not "async def". Searching waits for the
     # database and the model, and FastAPI runs a plain function in a worker
@@ -89,6 +104,19 @@ def create_app(backend: Backend) -> FastAPI:
         if detail is None:
             raise HTTPException(status_code=404, detail="no guide has this slug")
         return asdict(detail)
+
+    @app.post("/answer")
+    def answer_route(body: AnswerRequest) -> dict[str, Any]:
+        try:
+            question = clean_question(body.question)
+        except ValueError:
+            raise HTTPException(
+                status_code=422,
+                detail=f"question must be 1 to {MAX_QUESTION_CHARS} characters",
+            ) from None
+        # A hand-over is a normal result and answers 200. A database fault
+        # raises, and becomes 503 like on every other route.
+        return asdict(backend.answer(question))
 
     @app.get("/health")
     def health_route() -> dict[str, str]:

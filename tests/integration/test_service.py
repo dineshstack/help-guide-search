@@ -317,6 +317,8 @@ def test_build_puts_the_database_address_the_settings_file_and_the_routes_togeth
     monkeypatch.setitem(sys.modules, "guide_search.e5", stand_in)
     # build() reads DATABASE_URL, and settings.toml in the current folder.
     monkeypatch.setenv("DATABASE_URL", database_url)
+    # Without a key the answer agent is left out, which is what this test is about.
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     save_settings(Settings(threshold=0.3, default_mode="keyword"), tmp_path / "settings.toml")
     monkeypatch.chdir(tmp_path)
 

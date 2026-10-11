@@ -1,0 +1,11 @@
+# Settings of the answer agent. Edited by hand.
+# Every setting of the model request is here, so nothing is tuned out of sight.
+
+# Which Claude model writes the drafts.
+model = "claude-opus-5-5"
+
+# How much effort the model spends: low, medium, high, xhigh or max.
+effort = "medium"
+
+# The most tokens one reply may use. The model's own thinking counts toward it.
+max_tokens = 16000
