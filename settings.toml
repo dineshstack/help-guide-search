@@ -1,3 +1,4 @@
-# Written by the evaluation when it chooses the threshold. Not edited by hand.
+# Written by the evaluation when it chooses these values on dev. Not edited by hand.
 threshold = 0.0
-default_mode = "hybrid"
+default_mode = "rerank"
+rerank_threshold = 0.0024679774651303887
