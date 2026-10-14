@@ -4,7 +4,7 @@ A small Python service that answers questions from the 60 public help guides of 
 
 It also measures itself, and reports what it measured whether or not the result is flattering.
 
-It reads the public guides and nothing else. It is not connected to any live system, holds no customer data, and is not deployed anywhere.
+It reads the public guides and nothing else. It is not connected to any live system, holds no customer data, and serves no users.
 
 ```
                        ┌──────────────── one Service ────────────────┐
