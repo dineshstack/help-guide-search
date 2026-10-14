@@ -13,6 +13,7 @@ hashes stop matching and the stored line is no longer accepted.
 Run it with:
 
     python -m guide_search.evaluation.title_picking --split dev
+    python -m guide_search.evaluation.title_picking --split fresh   (reads the fresh question file)
 
 This is the only part of the project that needs ANTHROPIC_API_KEY.
 """
@@ -28,7 +29,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from guide_search.evaluation.questions import QUESTIONS_PATH, SNAPSHOT_PATH, Question, load_questions
+from guide_search.evaluation.questions import FRESH_PATH, QUESTIONS_PATH, SNAPSHOT_PATH, Question, load_questions
 from guide_search.snapshot import Guide, load_snapshot
 
 MODEL = "claude-sonnet-4-6"
@@ -301,8 +302,11 @@ def real_client() -> Any:
 def main(argv: list[str] | None = None, make_client: Callable[[], Any] = real_client) -> int:
     """Send the questions that have no stored answer yet. Tests pass a `make_client` that returns a fake."""
     parser = argparse.ArgumentParser(description="Ask the baseline model which guides it would read.")
-    parser.add_argument("--split", required=True, choices=["dev", "test"])
-    parser.add_argument("--questions", default=QUESTIONS_PATH, help="the question file")
+    parser.add_argument("--split", required=True, choices=["dev", "test", "fresh"])
+    parser.add_argument(
+        "--questions",
+        help="the question file; by default the fresh file for --split fresh, the main file otherwise",
+    )
     parser.add_argument("--snapshot", default=SNAPSHOT_PATH, help="the guide snapshot")
     parser.add_argument("--results", default=RESULTS_PATH, help="the file the answers are appended to")
     args = parser.parse_args(argv)
@@ -311,6 +315,8 @@ def main(argv: list[str] | None = None, make_client: Callable[[], Any] = real_cl
         print("ANTHROPIC_API_KEY is not set. The baseline cannot run without it.", file=sys.stderr)
         return 1
 
+    if args.questions is None:
+        args.questions = FRESH_PATH if args.split == "fresh" else QUESTIONS_PATH
     guides = load_snapshot(args.snapshot)
     questions = [q for q in load_questions(args.questions) if q.reviewed and q.split == args.split]
     if not questions:

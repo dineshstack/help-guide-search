@@ -3,6 +3,8 @@
 No model, no database. The questions and the stored lines are written by hand.
 """
 
+import pytest
+
 from guide_search.agent import AgentResult, CheckSummary
 from guide_search.drafting import ModelCall
 from guide_search.evaluation import agent_run
@@ -97,7 +99,8 @@ def test_a_line_from_an_edited_question_or_older_instructions_is_not_counted():
 
     kept = current_lines(lines, questions)
 
-    assert list(kept) == [(MODEL, "en-001")]
+    # A line stored before reranking was added names no mode: it was a hybrid search.
+    assert list(kept) == [(MODEL, "hybrid", "en-001")]
 
 
 def test_the_latest_line_for_a_question_and_model_wins_and_unreviewed_questions_are_left_out():
@@ -110,8 +113,8 @@ def test_the_latest_line_for_a_question_and_model_wins_and_unreviewed_questions_
 
     kept = current_lines(lines, [RIGHT, unreviewed])
 
-    assert list(kept) == [(MODEL, "en-001")]
-    assert kept[(MODEL, "en-001")]["decision"] == "answer"
+    assert list(kept) == [(MODEL, "hybrid", "en-001")]
+    assert kept[(MODEL, "hybrid", "en-001")]["decision"] == "answer"
 
 
 def test_a_stored_line_sums_the_tokens_of_every_call_and_names_the_cited_slugs():
@@ -213,3 +216,60 @@ def test_run_asks_only_the_reviewed_questions_of_the_split_that_have_no_current_
     lines = agent_run.load_lines()
     assert [line["question_id"] for line in lines] == ["en-010", "en-011"]
     assert lines[1]["model"] == MODEL and lines[1]["decision"] == "hand_over"
+
+
+def test_the_same_model_with_two_search_modes_gives_two_rows():
+    questions = [RIGHT, MISSED]
+    lines = [
+        stored(RIGHT, "answer", ["share-a-link"]),
+        stored(MISSED, "hand_over", []),
+        stored(RIGHT, "answer", ["share-a-link"], mode="rerank"),
+        stored(MISSED, "answer", ["count-stock"], mode="rerank"),
+    ]
+
+    report = render_report(questions, lines)
+
+    hybrid = next(line for line in report.splitlines() if line.startswith(f"| `{MODEL}`, hybrid |"))
+    rerank = next(line for line in report.splitlines() if line.startswith(f"| `{MODEL}`, rerank |"))
+    assert "| 1 of 2 (50%) | 0 of 2 (0%) | 1 of 2 (50%) |" in hybrid
+    assert "| 2 of 2 (100%) | 0 of 2 (0%) | 0 of 2 (0%) |" in rerank
+
+
+def bar_questions(split: str) -> list[Question]:
+    """20 answerable questions and 2 unanswerable ones in one split."""
+    answerable = [question(f"en-{number:03}", ("share-a-link",), split=split) for number in range(20)]
+    return answerable + [question("na-001", (), split=split), question("na-002", (), split=split)]
+
+
+@pytest.mark.parametrize("declined, met", [(3, "yes"), (4, "no")])
+def test_the_bar_allows_three_of_twenty_answerable_questions_declined(declined: int, met: str):
+    questions = bar_questions("test")
+    lines = []
+    for number, q in enumerate(questions):
+        if not q.answerable:
+            lines.append(stored(q, "hand_over", [], mode="rerank"))
+        elif number < declined:
+            lines.append(stored(q, "hand_over", [], mode="rerank"))
+        else:
+            lines.append(stored(q, "answer", ["share-a-link"], mode="rerank"))
+
+    report = render_report(questions, lines)
+
+    bar = next(line for line in report.splitlines() if line.startswith(f"| `{MODEL}`, rerank | test |"))
+    assert bar == f"| `{MODEL}`, rerank | test | {declined} of 20 ({declined * 5}%) | 3 | 2 of 2 (100%) | {met} |"
+
+
+def test_the_bar_is_not_met_when_an_unanswerable_question_is_answered():
+    questions = bar_questions("fresh")
+    lines = [stored(q, "answer", ["share-a-link"], mode="rerank") for q in questions]
+
+    report = render_report(questions, lines)
+
+    bar = next(line for line in report.splitlines() if line.startswith(f"| `{MODEL}`, rerank | fresh |"))
+    assert bar.endswith("| 0 of 2 (0%) | no |")
+
+
+def test_a_report_without_a_rerank_run_has_no_bar_section():
+    report = render_report([RIGHT], [stored(RIGHT, "answer", ["share-a-link"])])
+
+    assert "## The bar for relying on search" not in report

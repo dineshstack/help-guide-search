@@ -1,6 +1,6 @@
 """Search: find the passages that answer a question.
 
-There are three modes.
+There are four modes.
 
 - vector: turn the question into a vector and take the passages whose vectors
   point most nearly the same way. This finds text with the same meaning even
@@ -8,10 +8,12 @@ There are three modes.
 - keyword: Postgres full-text search. A passage matches when it contains any
   word of the question.
 - hybrid: run both and merge the two lists (see rrf_scores in ranking.py).
+- rerank: take the candidates of hybrid search, let a reranker score each one
+  against the question, and order them by that score (see reranking.py).
 
 Every mode ends the same way. The candidate passages (at most 20 from each
-search, so up to 40 in hybrid mode) are grouped by guide, and the result is up
-to 3 guides with up to 2 passages each.
+search, so up to 40 in hybrid and rerank mode) are grouped by guide, and the
+result is up to 3 guides with up to 2 passages each.
 
 Sometimes the honest result is "the guides do not cover this". Then the result
 has no guides and the reason "no_match". That is not an error. An error is
@@ -24,6 +26,7 @@ from dataclasses import replace
 import psycopg
 from pgvector import Vector
 
+from guide_search.chunking import build_search_text
 from guide_search.embedding import Embedder
 from guide_search.ranking import (
     CANDIDATES,
@@ -36,9 +39,10 @@ from guide_search.ranking import (
     question_words,
     rrf_scores,
 )
+from guide_search.reranking import Reranker
 from guide_search.store import IndexNotReady, count_passages
 
-MODES = ("vector", "keyword", "hybrid")
+MODES = ("vector", "keyword", "hybrid", "rerank")
 NO_MATCH = "no_match"
 
 # "<=>" is pgvector's cosine distance: 0 when two vectors point the same way.
@@ -92,14 +96,23 @@ def search(
     question: str,
     mode: str,
     threshold: float,
+    reranker: Reranker | None = None,
+    rerank_threshold: float = 0.0,
 ) -> SearchResult:
     """Search the passages stored for this embedder's model.
 
-    Raises ValueError for an unknown mode and IndexNotReady when the table is
-    missing or holds no passages for the model.
+    `threshold` is the refusal threshold of vector and hybrid mode, on vector
+    similarity. `rerank_threshold` is that of rerank mode, on the reranker's
+    score. Rerank mode needs `reranker`; the other modes ignore it.
+
+    Raises ValueError for an unknown mode or for rerank mode without a
+    reranker, and IndexNotReady when the table is missing or holds no passages
+    for the model.
     """
     if mode not in MODES:
         raise ValueError(f"unknown mode {mode!r}; the modes are: " + ", ".join(MODES))
+    if mode == "rerank" and reranker is None:
+        raise ValueError("rerank mode needs a reranker")
     # An empty table would make every question look like "no match", so it is
     # ruled out before anything else is done.
     count_passages(conn, embedder.model_id)
@@ -118,11 +131,22 @@ def search(
         # Only possible if the table was emptied after the count above.
         raise IndexNotReady("the passages table was emptied while it was being searched")
 
+    best_similarity = vector_list[0].similarity
+    if mode == "rerank":
+        keyword_list = _keyword_candidates(conn, embedder.model_id, question, question_vector)
+        candidates = _rerank(reranker, question, _fuse(vector_list, keyword_list))
+        # Rerank mode has its own rule for refusing, on the reranker's best
+        # score. That score is a direct judgement of "does this passage answer
+        # this question", which a similarity is not.
+        best_score = max(candidate.score for candidate in candidates)
+        if best_score < rerank_threshold:
+            return _no_match(question, mode, best_similarity, best_score)
+        return _found(question, mode, best_similarity, candidates, best_score)
+
     # Vector and hybrid share one rule for refusing: the best similarity must
     # reach the threshold. A fusion score cannot be used for this. It depends
     # only on rank positions, so the top passage scores about 1/61 whether it
     # is a perfect answer or nonsense.
-    best_similarity = vector_list[0].similarity
     if best_similarity < threshold:
         return _no_match(question, mode, best_similarity)
 
@@ -164,6 +188,7 @@ def _found(
     mode: str,
     best_similarity: float | None,
     candidates: list[Candidate],
+    best_rerank_score: float | None = None,
 ) -> SearchResult:
     """The result when there is something to return: the candidates, grouped by guide."""
     return SearchResult(
@@ -172,10 +197,16 @@ def _found(
         reason=None,
         best_similarity=best_similarity,
         guides=group_by_guide(candidates),
+        best_rerank_score=best_rerank_score,
     )
 
 
-def _no_match(question: str, mode: str, best_similarity: float | None) -> SearchResult:
+def _no_match(
+    question: str,
+    mode: str,
+    best_similarity: float | None,
+    best_rerank_score: float | None = None,
+) -> SearchResult:
     """The result when the guides do not cover the question: no guides, and the reason."""
     return SearchResult(
         query=question,
@@ -183,6 +214,7 @@ def _no_match(question: str, mode: str, best_similarity: float | None) -> Search
         reason=NO_MATCH,
         best_similarity=best_similarity,
         guides=[],
+        best_rerank_score=best_rerank_score,
     )
 
 
@@ -249,3 +281,17 @@ def _fuse(vector_list: list[Candidate], keyword_list: list[Candidate]) -> list[C
         # replace() copies the candidate with one field changed.
         fused[key] = replace(candidate, score=scores[key])
     return list(fused.values())
+
+
+def _rerank(reranker: Reranker, question: str, candidates: list[Candidate]) -> list[Candidate]:
+    """Score every candidate with the reranker. The score becomes the ordering value.
+
+    The reranker reads the same text that was embedded: the guide title, the
+    heading and the passage.
+    """
+    texts = [build_search_text(candidate.title, candidate.heading, candidate.content) for candidate in candidates]
+    scores = reranker.score(question, texts)
+    return [
+        replace(candidate, score=score, rerank_score=score)
+        for candidate, score in zip(candidates, scores, strict=True)
+    ]

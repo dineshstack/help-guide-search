@@ -1,6 +1,7 @@
 # Two images from one file.
 #
-#   runtime   the code, its libraries and the embedding model. No tests.
+#   runtime   the code, its libraries, the embedding model and the reranker.
+#             No tests.
 #             Runs the HTTP API by default, as an ordinary user.
 #   tools     runtime plus the tests and their libraries, for the integration
 #             tests and the evaluation.
@@ -14,7 +15,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.12.0 /uv /bin/uv
 
 WORKDIR /app
 
-# HF_HOME is where the embedding model is kept inside the image.
+# HF_HOME is where the two models are kept inside the image.
 ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
     HF_HOME=/opt/models \
@@ -38,11 +39,13 @@ RUN useradd --create-home --uid 10001 app \
     && chown app /opt/models /app/var
 USER app
 
-# Download the embedding model into the image, at the revision pinned in
-# e5.py. A container then starts without downloading anything.
+# Download the two models into the image, at the revisions pinned in e5.py
+# and cross_encoder.py. A container then starts without downloading anything.
+# The reranker is the large one: about 2.3 GB.
 RUN python -c "from guide_search.e5 import E5Embedder; E5Embedder()"
+RUN python -c "from guide_search.cross_encoder import CrossEncoderReranker; CrossEncoderReranker()"
 
-# From here on the model's host is never contacted.
+# From here on the models' host is never contacted.
 ENV HF_HUB_OFFLINE=1 \
     USAGE_LOG=/app/var/usage.jsonl
 

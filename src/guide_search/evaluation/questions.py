@@ -1,6 +1,9 @@
 """The evaluation questions: reading and writing the file, checking it, and the dev/test split.
 
 The questions live in `evaluation/questions.jsonl`, one JSON object per line.
+A second, smaller set in `evaluation/questions_fresh.jsonl` has the same
+fields. It was written after the rest had been scored, every question in it
+has the split "fresh", and it is scored separately.
 A question the guides can answer lists the guides that would be an acceptable
 answer (`expected_slugs`) and the sections that hold the answer
 (`answer_headings`). A question the guides cannot answer lists no guide.
@@ -25,6 +28,7 @@ from guide_search.chunking import chunk_guide
 from guide_search.snapshot import Guide, load_snapshot
 
 QUESTIONS_PATH = Path("evaluation/questions.jsonl")
+FRESH_PATH = Path("evaluation/questions_fresh.jsonl")
 SNAPSHOT_PATH = Path("data/guides.json")
 
 # The seed for the shuffle that decides the split. It is fixed so that anyone
@@ -32,7 +36,8 @@ SNAPSHOT_PATH = Path("data/guides.json")
 SPLIT_SEED = 20261010
 
 LANGUAGES = ("en", "ar")
-SPLITS = ("dev", "test")
+# "fresh" is only ever used in the fresh file. assign-split deals out dev and test.
+SPLITS = ("dev", "test", "fresh")
 GROUPS = ("en", "ar", "unanswerable")
 
 # The fields of one line of the file, in the order they are written.
@@ -46,7 +51,7 @@ class Question:
     question: str
     expected_slugs: tuple[str, ...]              # empty for an unanswerable question
     answer_headings: dict[str, tuple[str, ...]]  # slug -> headings holding the answer; "" is the intro
-    split: str | None                            # "dev", "test" or None before assignment
+    split: str | None                            # "dev", "test", "fresh", or None before assignment
     reviewed: bool
 
     @property
@@ -220,7 +225,7 @@ def question_problems(question: Question, headings_by_slug: dict[str, set[str]])
     if not question.answerable and question.language != "en":
         problems.append("a question the guides cannot answer must be in English")
     if question.split is not None and question.split not in SPLITS:
-        problems.append(f"split is {question.split!r}; it must be 'dev' or 'test', or not set yet")
+        problems.append(f"split is {question.split!r}; it must be 'dev', 'test' or 'fresh', or not set yet")
 
     for slug in question.expected_slugs:
         if slug not in headings_by_slug:

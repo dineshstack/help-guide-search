@@ -2,8 +2,8 @@
 
 api.py knows about HTTP and nothing else. It asks a "backend" for answers.
 The Service class in this file is the real backend: it holds the database
-address, the embedding model and the settings, and answers each request with
-the search code.
+address, the embedding model, the reranker and the settings, and answers
+each request with the search code.
 
 To run the web server:
 
@@ -26,6 +26,7 @@ from guide_search.api import create_app
 from guide_search.drafting import Drafter
 from guide_search.embedding import Embedder
 from guide_search.ranking import GuideDetail, GuideList, SearchResult
+from guide_search.reranking import Reranker
 from guide_search.search import list_guides, read_guide
 from guide_search.search import search as search_passages
 from guide_search.store import DatabaseUnavailable, connect, count_passages
@@ -41,10 +42,16 @@ class Service:
         settings: config.Settings,
         drafter: Drafter | None = None,
         usage_log: Path | None = None,
+        reranker: Reranker | None = None,
     ) -> None:
+        # Without a reranker, rerank mode cannot be searched. So it cannot be
+        # the mode used when a request names none.
+        if reranker is None and settings.default_mode == "rerank":
+            raise config.ConfigError("The default mode is rerank, but the service has no reranker.")
         self.database_url = database_url
         self.embedder = embedder
         self.settings = settings
+        self.reranker = reranker
         # The answer agent is optional. Without a model for it, search, the
         # guide routes and the MCP tools all still work.
         self.agent: Agent | None = None
@@ -72,7 +79,15 @@ class Service:
         with self.search_lock:
             try:
                 with connect(self.database_url, read_only=True) as conn:
-                    return search_passages(conn, self.embedder, question, mode, self.settings.threshold)
+                    return search_passages(
+                        conn,
+                        self.embedder,
+                        question,
+                        mode,
+                        self.settings.threshold,
+                        self.reranker,
+                        self.settings.rerank_threshold,
+                    )
             except psycopg.OperationalError as error:
                 raise DatabaseUnavailable(f"the database stopped answering: {error}") from error
 
@@ -116,9 +131,10 @@ class Service:
 
 
 def real_service() -> Service:
-    """Build the service with the real embedding model, and the answer agent if it has a key."""
-    # Imported here and not at the top, because this import loads torch, which
-    # takes seconds. Importing this module must stay quick.
+    """Build the service with the real models, and the answer agent if it has a key."""
+    # Imported here and not at the top, because these imports load torch,
+    # which takes seconds. Importing this module must stay quick.
+    from guide_search.cross_encoder import CrossEncoderReranker
     from guide_search.e5 import E5Embedder
 
     drafter = None
@@ -129,7 +145,14 @@ def real_service() -> Service:
     # USAGE_LOG lets a container, whose program folder cannot be written to,
     # put the token records somewhere that can.
     usage_log = Path(os.environ.get("USAGE_LOG", "").strip() or DEFAULT_USAGE_LOG)
-    return Service(config.database_url(), E5Embedder(), config.load_settings(), drafter, usage_log)
+    return Service(
+        config.database_url(),
+        E5Embedder(),
+        config.load_settings(),
+        drafter,
+        usage_log,
+        CrossEncoderReranker(),
+    )
 
 
 def build() -> FastAPI:

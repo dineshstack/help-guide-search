@@ -16,20 +16,32 @@ It searches nothing and reads no file. Everything it needs is handed to it in
     test_scored_before  True when a results file from an earlier run was in the output folder
     run_date            the date of this run
     machine             describe_machine()
-    questions           every question in the question file, reviewed or not
-    outcomes            method -> question id -> Outcome, with the threshold
-    ranking_only        "vector" and "hybrid" -> question id -> Outcome, with the threshold at 0
+    questions           every question in both question files, reviewed or not
+    outcomes            method -> question id -> Outcome, with the thresholds
+    ranking_only        search mode -> question id -> Outcome, with the thresholds at 0
     dev_similarities    question id -> best similarity, for the reviewed dev questions
     corrections         the logged label corrections, each a dict
 
-Only reviewed questions are counted, and `dev` and `test` are never added
-together: every table is for one split.
+and, from the round that added reranking:
+
+    reranker_id          the reranker and its revision
+    rerank_threshold     the reranker threshold this run used (from settings.toml)
+    default_mode         the default search mode (from settings.toml)
+    fresh_scored_before  True when the earlier results file already held fresh questions
+    dev_rerank_scores    question id -> the reranker's best score, for the reviewed dev questions
+    reranker_choice      the record of how the reranker was chosen, or None
+    tokens               the token counts, or None
+
+A report of a run without rerank (the tests build such contexts) leaves out
+what belongs to rerank. Only reviewed questions are counted, and splits are
+never added together: every table is for one split.
 
 The smaller functions each write one section and return it as a list of
 lines. run.py also uses three of them on their own, to print the threshold
 table and the dev tables.
 """
 
+import math
 import os
 import platform
 import statistics
@@ -39,6 +51,7 @@ from pathlib import Path
 
 from guide_search.evaluation.metrics import (
     Outcome,
+    choose_default_mode,
     choose_threshold,
     hit_at,
     sign_test,
@@ -47,21 +60,27 @@ from guide_search.evaluation.metrics import (
 )
 from guide_search.evaluation.questions import Question
 
-# The four methods, in the order of every table.
-METHODS = ("title_picking", "vector", "keyword", "hybrid")
+# The five methods, in the order of every table.
+METHODS = ("title_picking", "vector", "keyword", "hybrid", "rerank")
 METHOD_NAMES = {
     "title_picking": "Title-picking",
     "vector": "Vector",
     "keyword": "Keyword",
     "hybrid": "Hybrid",
+    "rerank": "Rerank",
 }
 
-# The two search modes that have a threshold. They are run a second time with
-# the threshold switched off.
-RANKING_ONLY_MODES = ("vector", "hybrid")
+# The three search modes that have a threshold. They are run a second time
+# with the threshold switched off.
+RANKING_ONLY_MODES = ("vector", "hybrid", "rerank")
 
-# `test` comes first in the report, because its numbers are the ones reported.
-SPLITS = ("test", "dev")
+# `test` comes first in the report, because its numbers are the ones reported,
+# then the fresh questions, which nothing had touched.
+SPLITS = ("test", "fresh", "dev")
+
+# Search is good enough to rely on when a returned passage holds the answer
+# for at least this share of the answerable questions: 18 of 20.
+BAR_SHARE = 0.9
 
 LANGUAGE_NAMES = {"en": "English", "ar": "Arabic"}
 
@@ -79,6 +98,7 @@ GIGABYTE = 2**30
 # Inside a Docker container, Linux keeps the container's limits in this folder.
 CONTAINER_LIMITS_FOLDER = Path("/sys/fs/cgroup")
 
+# The notes of a run without rerank.
 SPLIT_NOTES = {
     "test": (
         "The `test` questions played no part in any choice. "
@@ -87,6 +107,25 @@ SPLIT_NOTES = {
     "dev": (
         "The threshold was chosen on these questions. The refusal numbers of vector and hybrid "
         "search are therefore better here than they would be on new questions."
+    ),
+}
+
+# The notes of a run with rerank.
+RERANK_SPLIT_NOTES = {
+    "test": (
+        "No value was chosen on the `test` questions: the thresholds and the default mode were "
+        "frozen before they were scored."
+    ),
+    "fresh": (
+        "The `fresh` questions were written and reviewed after every result above them in this "
+        "file was known from earlier runs, and before any rerank search was run on them. No value "
+        "was chosen on them. Unlike `test`, whose earlier results were known when reranking was "
+        "added, nothing had been measured on them."
+    ),
+    "dev": (
+        "The thresholds, the default mode and the reranker were chosen on these questions. The "
+        "refusal numbers of vector, hybrid and rerank search are therefore better here than they "
+        "would be on new questions."
     ),
 }
 
@@ -118,8 +157,8 @@ HEADLINE_NOTE = (
 
 TIME_NOTE = (
     "Per question, over all scored questions together. Search is timed on the machine named above, "
-    "around the search function, including embedding the question, after one discarded warm-up "
-    "query. Title-picking time is the model's response time over the network, recorded when the "
+    "around the search function, including embedding the question and, for rerank, scoring the "
+    "candidates, after one discarded warm-up query. Title-picking time is the model's response time over the network, recorded when the "
     "baseline was run. These are different kinds of time. They are shown side by side and are not compared."
 )
 
@@ -135,6 +174,58 @@ THRESHOLD_NOTE = (
 ZERO_NOTE = (
     "The rule chose 0. On these questions similarity did not separate the questions the guides "
     "cannot answer from the ones they can. With a threshold of 0, vector and hybrid search never refuse."
+)
+
+RERANK_THRESHOLD_NOTE = (
+    "Rerank search returns no match when the reranker's best score for a question is below this "
+    "threshold. The reranker reads the question and each passage together, so its score is a direct "
+    "judgement of whether the passage answers the question, which a similarity is not. The rule is "
+    "the one above, applied to the reranker's best scores on the reviewed `dev` questions. Its "
+    "scores lie between 0 and 1."
+)
+
+RERANK_ZERO_NOTE = (
+    "The rule chose 0. On these questions the reranker's score did not separate the questions the "
+    "guides cannot answer from the ones they can either. With a threshold of 0, rerank search never refuses."
+)
+
+DEFAULT_MODE_NOTE = (
+    "The default mode is what a request that names no mode gets, the answer agent included. "
+    "Rerank becomes the default only when, on the reviewed `dev` questions and with each mode's "
+    "threshold, it returns a passage that holds the answer for more answerable questions than "
+    "hybrid does, and refuses at least as many of the unanswerable ones. Otherwise hybrid stays "
+    "the default, because it needs no reranker."
+)
+
+BAR_NOTE = (
+    "The bar was set before rerank was run on `test` or on the fresh questions: a returned passage "
+    "must hold the answer for at least 18 of 20 answerable questions (90%). Only then can an "
+    "assistant rely on the passages instead of reading a list of titles and then whole guides. "
+    "The second half of the bar, that the answer agent declines at most 3 of 20 answerable "
+    "questions while still declining the unanswerable ones, is in `agent_report.md`."
+)
+
+TOKENS_NOTE = (
+    "The guide text a model must read to answer one question, in tokens, counted with the API's "
+    "token counter for the model named above. For search it is the returned passages, written as "
+    "the answer agent is shown them, with their guide titles and web addresses. For title-picking "
+    "it is the list of all guide titles plus the whole picked guides. The question and the "
+    "instructions are left out: they are the same for every method. Each count includes the few "
+    "tokens the API adds to any message. A refused question counts 0 and is left out of the median. "
+    "Fewer tokens are only worth having when the right passage is among them: read this beside "
+    "passage hit@3."
+)
+
+CHOICE_NOTE = (
+    "Every candidate reranked the candidates of hybrid search for the reviewed `dev` questions, "
+    "with refusing switched off. The rule, set before the first run: the most questions with a "
+    "returned passage that holds the answer; a tie goes to the faster model; a model slower than "
+    "one second per question is out. **No candidate met the time limit.** The only one that did "
+    "better than hybrid search took about 8 seconds per question on two threads. After seeing "
+    "that, the owner raised the limit to {limit:g} seconds; nothing else in the rule changed. The "
+    "table is from the run after that change. The candidates are open models with a licence that "
+    "allows commercial use, trained on Arabic as well as English, that run on a CPU and load "
+    "without running code from the model's own repository."
 )
 
 MISSES_NOTE = (
@@ -174,6 +265,16 @@ LIMITS = [
     "- Arabic questions are matched against English passages. Published benchmarks for this "
     "embedding model show that this is clearly weaker than English to English, so lower Arabic "
     "results are expected. The baseline's model reads Arabic directly and has no such handicap.",
+]
+
+# The limits that belong to rerank. They are added only when rerank was run.
+RERANK_LIMITS = [
+    "- The reranker was chosen on the `dev` questions from three candidates, so its `dev` "
+    "numbers flatter it a little. The `test` questions had been scored before, and their earlier "
+    "results were known when reranking was added. The fresh questions are the only ones nothing "
+    "had touched, and there are 25 of them.",
+    "- Rerank can only reorder what hybrid search found: a passage that neither vector nor "
+    "keyword search returns among its first 20 never reaches the reranker.",
 ]
 
 # Some limits are about Arabic results. While no Arabic question is reviewed
@@ -341,6 +442,28 @@ def slug_list(slugs: list[str] | tuple[str, ...]) -> str:
     return ", ".join(f"`{slug}`" for slug in slugs)
 
 
+def methods_in(context: dict) -> list[str]:
+    """The methods this run has outcomes for, in table order."""
+    return [method for method in METHODS if method in context["outcomes"]]
+
+
+def has_rerank(context: dict) -> bool:
+    return "rerank" in context["outcomes"]
+
+
+def splits_in(context: dict) -> list[str]:
+    """The splits that get a section: test and dev always, fresh once a fresh question is reviewed."""
+    return [split for split in SPLITS if split != "fresh" or scored(context, "fresh")]
+
+
+def name_list(names: list[str]) -> str:
+    """"A", "A and b", "A, b and c": the first name as it is, the others in lower case."""
+    words = [names[0]] + [name.lower() for name in names[1:]]
+    if len(words) == 1:
+        return words[0]
+    return ", ".join(words[:-1]) + " and " + words[-1]
+
+
 def scored(context: dict, split: str, group: str | None = None) -> list[Question]:
     """The reviewed questions of one split, or of one group within it."""
     questions = []
@@ -360,6 +483,7 @@ def what_was_run_lines(context: dict) -> list[str]:
     reviewed = [question for question in questions if question.reviewed]
     dev = len([question for question in reviewed if question.split == "dev"])
     test = len([question for question in reviewed if question.split == "test"])
+    fresh = len([question for question in reviewed if question.split == "fresh"])
     unreviewed = len(questions) - len(reviewed)
 
     models = ", ".join(f"`{model}`" for model in context["baseline_models"])
@@ -383,20 +507,45 @@ def what_was_run_lines(context: dict) -> list[str]:
         # saw that no results file was there.
         test_note = "scored in this run. No results file from an earlier run was found in the output folder."
 
+    if fresh:
+        files = "the question files"
+        counts = f"{dev} dev, {test} test, {fresh} fresh"
+    else:
+        files = "the question file"
+        counts = f"{dev} dev, {test} test"
+
     lines = [
         "## What was run",
         "",
         f"- Guides: the snapshot fetched on {context['snapshot_date']}, "
         f"{context['guide_count']} guides, {context['passage_count']} passages in the index",
-        f"- Questions: the question file at commit `{context['questions_commit']}`; "
-        f"{len(reviewed)} reviewed and scored ({dev} dev, {test} test); "
+        f"- Questions: {files} at commit `{context['questions_commit']}`; "
+        f"{len(reviewed)} reviewed and scored ({counts}); "
         f"{unreviewed} not reviewed and not scored",
         f"- Embedding model: `{context['model_id']}`",
+    ]
+    if has_rerank(context):
+        lines.append(f"- Reranker: `{context['reranker_id']}`")
+    lines += [
         f"- Title-picking model: {models}; each question was asked once; "
         f"answers recorded on {dates}; {prompt}",
         f"- Threshold: {context['threshold']:.4f}. Below this best similarity, "
         "vector and hybrid search return no match.",
-        f"- Test questions: {test_note}",
+    ]
+    if has_rerank(context):
+        lines += [
+            f"- Rerank threshold: {context['rerank_threshold']:.4f}. Below this best reranker score, "
+            "rerank search returns no match.",
+            f"- Default mode: {context['default_mode']}",
+        ]
+    lines.append(f"- Test questions: {test_note}")
+    if fresh:
+        if context["fresh_scored_before"]:
+            fresh_note = "scored again. The results file from an earlier run already held them."
+        else:
+            fresh_note = "scored in this run. No results file from an earlier run held them."
+        lines.append(f"- Fresh questions: {fresh_note}")
+    lines += [
         f"- Run date: {context['run_date']}",
         f"- Machine: {context['machine']}",
         "",
@@ -435,50 +584,109 @@ def wins_and_losses(
     return wins, losses
 
 
-def verdict(wins: int, losses: int) -> str:
+def verdict(wins: int, losses: int, mode: str = "hybrid") -> str:
     """The sentence for one measure: better, worse, or no difference that this set can show."""
     if sign_test(wins, losses) >= SIGNIFICANCE:
-        return "**no difference that this set can show** between hybrid search and title-picking."
+        return f"**no difference that this set can show** between {mode} search and title-picking."
     if wins > losses:
-        return "hybrid search is **better** than title-picking."
-    return "hybrid search is **worse** than title-picking."
+        return f"{mode} search is **better** than title-picking."
+    return f"{mode} search is **worse** than title-picking."
 
 
-def headline_lines(context: dict) -> list[str]:
-    lines = ["## Headline: hybrid search against title-picking", ""]
-    questions = scored(context, "test", "en")
-    if not questions:
-        return lines + ["No reviewed English test question has been scored, so there is no headline.", ""]
-
-    hybrid = context["outcomes"]["hybrid"]
+def comparison_lines(context: dict, mode: str, split: str) -> list[str]:
+    """One search mode against title-picking, on the English questions of one split: a table and two sentences."""
+    questions = scored(context, split, "en")
+    ours = context["outcomes"][mode]
     title_picking = context["outcomes"]["title_picking"]
+    name = METHOD_NAMES[mode]
     rows = []
     sentences = []
     for k in (1, 3):
-        wins, losses = wins_and_losses(questions, hybrid, title_picking, k)
-        hybrid_hits = len([q for q in questions if hit_at(q, hybrid[q.id], k)])
+        wins, losses = wins_and_losses(questions, ours, title_picking, k)
+        our_hits = len([q for q in questions if hit_at(q, ours[q.id], k)])
         title_picking_hits = len([q for q in questions if hit_at(q, title_picking[q.id], k)])
         rows.append(
             [
                 f"hit@{k}",
-                rate(hybrid_hits, len(questions)),
+                rate(our_hits, len(questions)),
                 rate(title_picking_hits, len(questions)),
                 str(wins),
                 str(losses),
                 f"{sign_test(wins, losses):.3f}",
             ]
         )
-        sentences.append(f"- hit@{k}: {verdict(wins, losses)}")
+        sentences.append(f"- hit@{k}: {verdict(wins, losses, mode)}")
 
     header = [
         "Measure",
-        "Hybrid",
+        name,
         "Title-picking",
-        "Hybrid right, title-picking wrong",
-        "Title-picking right, hybrid wrong",
+        f"{name} right, title-picking wrong",
+        f"Title-picking right, {mode} wrong",
         "p (two-sided sign test)",
     ]
-    return lines + table(header, rows) + [""] + sentences + ["", HEADLINE_NOTE, ""]
+    return table(header, rows) + [""] + sentences
+
+
+def headline_lines(context: dict) -> list[str]:
+    lines = ["## Headline: hybrid search against title-picking", ""]
+    if not scored(context, "test", "en"):
+        return lines + ["No reviewed English test question has been scored, so there is no headline.", ""]
+    return lines + comparison_lines(context, "hybrid", "test") + ["", HEADLINE_NOTE, ""]
+
+
+def rerank_comparison_lines(context: dict) -> list[str]:
+    """Rerank against title-picking, on test and on the fresh questions."""
+    lines = [
+        "## Rerank search against title-picking",
+        "",
+        "The comparison of the headline, for rerank search, on `test` and on the fresh questions. "
+        "Unlike the headline, these comparisons were not named before the first run, so read them "
+        "as descriptive.",
+        "",
+    ]
+    for split in ("test", "fresh"):
+        if scored(context, split, "en"):
+            lines += [f"### On {split}", ""] + comparison_lines(context, "rerank", split) + [""]
+    return lines
+
+
+def bar_lines(context: dict) -> list[str]:
+    """Whether rerank search met the bar on test and on the fresh questions."""
+    lines = ["## Is search good enough to rely on?", "", BAR_NOTE, ""]
+    rows = []
+    sentences = []
+    for split in ("test", "fresh"):
+        questions = scored(context, split, "en")
+        if not questions:
+            continue
+        for mode in ("hybrid", "rerank"):
+            summary = summarise_answerable(questions, context["outcomes"][mode])
+            # 9 * total / 10 is exact whenever it is a whole number, so ceil cannot round 18 up to 19.
+            needed = math.ceil(9 * summary.total / 10)
+            met = summary.passage_hit3 >= needed
+            rows.append(
+                [
+                    split,
+                    METHOD_NAMES[mode],
+                    rate(summary.passage_hit3, summary.total),
+                    f"{needed} of {summary.total}",
+                    "yes" if met else "no",
+                ]
+            )
+            if mode == "rerank":
+                if met:
+                    sentences.append(f"- On {split}, rerank search **meets** the bar.")
+                else:
+                    short = needed - summary.passage_hit3
+                    sentences.append(
+                        f"- On {split}, rerank search **falls short** of the bar by {short} "
+                        f"question{'s' if short != 1 else ''}."
+                    )
+    if not rows:
+        return lines + ["No reviewed English test or fresh question has been scored.", ""]
+    header = ["Questions", "Method", "A returned passage holds the answer", "Bar", "Met"]
+    return lines + table(header, rows) + [""] + sentences + [""]
 
 
 # --- the tables of one split ------------------------------------------------
@@ -503,7 +711,7 @@ def answerable_lines(context: dict, split: str, language: str) -> list[str]:
         return lines + ["No reviewed question in this group.", ""]
 
     rows = []
-    for method in METHODS:
+    for method in methods_in(context):
         summary = summarise_answerable(questions, context["outcomes"][method])
         rows.append(
             [
@@ -537,7 +745,7 @@ def unanswerable_lines(context: dict, split: str) -> list[str]:
         return lines + ["No reviewed question in this group.", ""]
 
     rows = []
-    for method in METHODS:
+    for method in methods_in(context):
         summary = summarise_unanswerable(questions, context["outcomes"][method])
         answered = summary.total - summary.correct_refusals
         rows.append(
@@ -552,15 +760,17 @@ def unanswerable_lines(context: dict, split: str) -> list[str]:
 
 
 def ranking_only_lines(context: dict, split: str) -> list[str]:
+    modes = [mode for mode in RANKING_ONLY_MODES if mode in context["ranking_only"]]
     lines = [
         "### Ranking only: the threshold switched off",
         "",
-        "Vector and hybrid search, run again with the threshold at 0, so that nothing is refused. "
-        "When a result above is weak, this shows whether the ranking or the refusing is the cause.",
+        f"{name_list([METHOD_NAMES[mode] for mode in modes])} search, run again with the threshold at 0, "
+        "so that nothing is refused. When a result above is weak, this shows whether the ranking or "
+        "the refusing is the cause.",
         "",
     ]
     rows = []
-    for mode in RANKING_ONLY_MODES:
+    for mode in modes:
         for language in LANGUAGE_NAMES:
             questions = scored(context, split, language)
             if not questions:
@@ -582,7 +792,8 @@ def ranking_only_lines(context: dict, split: str) -> list[str]:
 
 def split_lines(context: dict, split: str) -> list[str]:
     """Every table of one split. The other split is not looked at."""
-    lines = [f"## Results on {split}", "", SPLIT_NOTES[split], ""]
+    notes = RERANK_SPLIT_NOTES if has_rerank(context) else SPLIT_NOTES
+    lines = [f"## Results on {split}", "", notes[split], ""]
     for language in LANGUAGE_NAMES:
         lines += answerable_lines(context, split, language)
     lines += unanswerable_lines(context, split)
@@ -600,7 +811,7 @@ def milliseconds(seconds: float) -> str:
 
 def time_lines(context: dict) -> list[str]:
     rows = []
-    for method in METHODS:
+    for method in methods_in(context):
         seconds = [outcome.seconds for outcome in context["outcomes"][method].values()]
         if seconds:
             rows.append(
@@ -626,17 +837,53 @@ def gap_line(side: str, gap: float | None) -> str:
 
 def threshold_lines(context: dict) -> list[str]:
     """The threshold section. It needs only `questions`, `dev_similarities` and `threshold`."""
-    lines = ["## The threshold", "", THRESHOLD_NOTE, ""]
+    return threshold_section(
+        context,
+        heading="## The threshold",
+        note=THRESHOLD_NOTE,
+        zero_note=ZERO_NOTE,
+        scores_key="dev_similarities",
+        used=context["threshold"],
+        setting="Threshold",
+        score_name="best similarity",
+    )
+
+
+def rerank_threshold_lines(context: dict) -> list[str]:
+    """The rerank threshold section. It needs only `questions`, `dev_rerank_scores` and `rerank_threshold`."""
+    return threshold_section(
+        context,
+        heading="## The rerank threshold",
+        note=RERANK_THRESHOLD_NOTE,
+        zero_note=RERANK_ZERO_NOTE,
+        scores_key="dev_rerank_scores",
+        used=context["rerank_threshold"],
+        setting="Rerank threshold",
+        score_name="reranker's best score",
+    )
+
+
+def threshold_section(
+    context: dict,
+    heading: str,
+    note: str,
+    zero_note: str,
+    scores_key: str,
+    used: float,
+    setting: str,
+    score_name: str,
+) -> list[str]:
+    """One threshold: the rule's candidates on dev, its choice, the gaps, and the scores by group."""
+    lines = [heading, "", note, ""]
     dev = scored(context, "dev")
     if not dev:
         return lines + ["No reviewed dev question has been scored, so there is nothing to choose from.", ""]
 
-    similarities = context["dev_similarities"]
-    choice = choose_threshold([(similarities[question.id], question.answerable) for question in dev])
-    used = context["threshold"]
+    scores = context[scores_key]
+    choice = choose_threshold([(scores[question.id], question.answerable) for question in dev])
     same = abs(used - choice.threshold) < THRESHOLD_TOLERANCE
 
-    lines.append(f"Threshold in `settings.toml`, used in this run: {used:.4f}.")
+    lines.append(f"{setting} in `settings.toml`, used in this run: {used:.4f}.")
     # `final` in run.py stops when the two differ, so a written report always
     # has this sentence. It is still checked here, so that this function
     # never says something it has not looked at.
@@ -657,22 +904,22 @@ def threshold_lines(context: dict) -> list[str]:
         gap_line("below it", choice.gap_below),
         gap_line("at or above it", choice.gap_above),
         "",
-        "The best similarity of the dev questions, by group:",
+        f"The {score_name} of the dev questions, by group:",
         "",
     ]
 
     rows = []
     groups = [("en", "English, answerable"), ("ar", "Arabic, answerable"), ("unanswerable", "Unanswerable")]
     for group, name in groups:
-        scores = [similarities[question.id] for question in dev if question.group == group]
-        if scores:
+        group_scores = [scores[question.id] for question in dev if question.group == group]
+        if group_scores:
             rows.append(
                 [
                     name,
-                    str(len(scores)),
-                    f"{min(scores):.4f}",
-                    f"{statistics.median(scores):.4f}",
-                    f"{max(scores):.4f}",
+                    str(len(group_scores)),
+                    f"{min(group_scores):.4f}",
+                    f"{statistics.median(group_scores):.4f}",
+                    f"{max(group_scores):.4f}",
                 ]
             )
         else:
@@ -681,7 +928,118 @@ def threshold_lines(context: dict) -> list[str]:
     lines.append("")
 
     if same and choice.threshold == 0.0:
-        lines += [ZERO_NOTE, ""]
+        lines += [zero_note, ""]
+    return lines
+
+
+# --- the default mode -------------------------------------------------------
+
+
+def default_mode_lines(context: dict) -> list[str]:
+    """How the default mode was chosen. It needs `questions`, `outcomes` (hybrid and rerank) and `default_mode`."""
+    lines = ["## The default mode", "", DEFAULT_MODE_NOTE, ""]
+    dev = scored(context, "dev")
+    if not dev:
+        return lines + ["No reviewed dev question has been scored, so there is nothing to choose from.", ""]
+
+    rows = []
+    for mode in ("hybrid", "rerank"):
+        outcomes = context["outcomes"][mode]
+        answerable = summarise_answerable(dev, outcomes)
+        unanswerable = summarise_unanswerable(dev, outcomes)
+        rows.append(
+            [
+                METHOD_NAMES[mode],
+                rate(answerable.passage_hit3, answerable.total),
+                rate(unanswerable.correct_refusals, unanswerable.total),
+            ]
+        )
+    lines += table(["Dev questions", "A returned passage holds the answer", "Correct refusals"], rows)
+    choice = choose_default_mode(dev, context["outcomes"]["hybrid"], context["outcomes"]["rerank"])
+    lines += ["", f"The rule's choice is {choice}. `settings.toml` holds {context['default_mode']}.", ""]
+    return lines
+
+
+# --- the reranker -----------------------------------------------------------
+
+
+def choice_row(name: str, entry: dict) -> list[str]:
+    """One row of the reranker choice: a candidate, or hybrid search for comparison."""
+    if not entry["loaded"]:
+        return [name, f"not run: {entry['note']}", "", "", "", "", ""]
+    return [
+        name,
+        rate(entry["hit1"], entry["total"]),
+        rate(entry["hit3"], entry["total"]),
+        rate(entry["passage_hit3"], entry["total"]),
+        milliseconds(entry["median_seconds"]),
+        milliseconds(entry["max_seconds"]),
+        entry["note"] or "",
+    ]
+
+
+def reranker_choice_lines(context: dict) -> list[str]:
+    """How the reranker was chosen, from the record that reranker_choice.py wrote."""
+    choice = context.get("reranker_choice")
+    if not choice:
+        return []
+    lines = [
+        "## The reranker",
+        "",
+        CHOICE_NOTE.format(limit=choice["limit_seconds"]),
+        "",
+        f"Run on {choice['date']}, on {choice['machine']}, with torch limited to {choice['threads']} "
+        f"threads, over the {choice['answerable']} answerable reviewed `dev` questions. A time is the "
+        "whole search, the round trips to the database included. The times of the reported run are "
+        "in the Time section.",
+        "",
+    ]
+    rows = [choice_row(f"`{entry['name']}`", entry) for entry in choice["candidates"]]
+    rows.append(choice_row("Hybrid search, no reranker", choice["hybrid"]))
+    header = ["Candidate", "hit@1", "hit@3", "Passage hit@3", "Median time", "Maximum time", ""]
+    lines += table(header, rows) + [""]
+    if choice["chosen"]:
+        lines.append(f"Chosen: `{choice['chosen']}`.")
+    else:
+        lines.append("No candidate met the rule.")
+    return lines + [""]
+
+
+# --- tokens -----------------------------------------------------------------
+
+
+def token_lines(context: dict) -> list[str]:
+    """The guide text a model must read per question, in tokens, from the record tokens.py wrote."""
+    tokens = context.get("tokens")
+    if not tokens:
+        return []
+    lines = [
+        "## Tokens a model must read",
+        "",
+        f"Counted for `{tokens['model']}` on {tokens['date']}.",
+        "",
+    ]
+    rows = []
+    for method in methods_in(context):
+        counts = [entry["tokens"] for entry in tokens["entries"] if entry["method"] == method and not entry["refused"]]
+        if counts:
+            rows.append(
+                [
+                    METHOD_NAMES[method],
+                    str(len(counts)),
+                    f"{statistics.median(counts):,.0f}",
+                    f"{max(counts):,}",
+                ]
+            )
+    lines += table(["Method", "Questions", "Median tokens", "Maximum tokens"], rows)
+    lines += ["", TOKENS_NOTE, ""]
+    left_out = tokens.get("left_out", 0)
+    if left_out:
+        lines += [
+            f"{left_out} count{'s were' if left_out != 1 else ' was'} left out: made from a search result "
+            "other than this run's, as can happen when a near-tie turns the other way on another machine.",
+            "",
+        ]
     return lines
 
 
@@ -699,7 +1057,7 @@ def miss_lines(context: dict, split: str) -> list[str]:
     """Every miss of one split, method by method."""
     lines = [f"### Misses on {split}", ""]
     questions = scored(context, split)
-    for method in METHODS:
+    for method in methods_in(context):
         lines += [f"#### {METHOD_NAMES[method]}", ""]
         outcomes = context["outcomes"][method]
         missed = [question for question in questions if is_miss(question, outcomes[question.id])]
@@ -749,6 +1107,8 @@ def limit_lines(context: dict) -> list[str]:
         # Only the second limit has the two places to fill in. format() gives
         # the other eight back unchanged.
         lines.append(limit.format(unanswerable=len(unanswerable), scored=len(reviewed)))
+    if has_rerank(context):
+        lines += RERANK_LIMITS
 
     arabic_reviewed = [question for question in reviewed if question.language == "ar"]
     if not arabic_reviewed:
@@ -762,22 +1122,38 @@ def limit_lines(context: dict) -> list[str]:
 
 def render_report(context: dict) -> str:
     """The whole of evaluation/report.md, as one text."""
+    intro = (
+        "This report answers one question: is search better than letting a model pick guides "
+        "from a list of their titles?"
+    )
+    if has_rerank(context):
+        intro += (
+            " Since reranking was added, it answers a second: is search good enough that an "
+            "assistant can rely on the passages it returns?"
+        )
     lines = [
         "# Evaluation report",
         "",
-        "This report answers one question: is search better than letting a model pick guides "
-        "from a list of their titles? The numbers are reported as measured, whichever way they come out.",
+        intro + " The numbers are reported as measured, whichever way they come out.",
         "",
     ]
     lines += what_was_run_lines(context)
     lines += headline_lines(context)
+    if has_rerank(context):
+        lines += rerank_comparison_lines(context)
+        lines += bar_lines(context)
     lines += measure_lines()
-    for split in SPLITS:
+    for split in splits_in(context):
         lines += split_lines(context, split)
     lines += time_lines(context)
+    lines += token_lines(context)
     lines += threshold_lines(context)
+    if has_rerank(context):
+        lines += rerank_threshold_lines(context)
+        lines += default_mode_lines(context)
+    lines += reranker_choice_lines(context)
     lines += ["## Misses", "", MISSES_NOTE, ""]
-    for split in SPLITS:
+    for split in splits_in(context):
         lines += miss_lines(context, split)
     lines += correction_lines(context)
     lines += limit_lines(context)

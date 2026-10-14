@@ -2,11 +2,11 @@
 
 There are two kinds, and they are kept in two places.
 
-- Values that are the same on every machine: the "too weak to be a match"
-  threshold and the default search mode. They live in settings.toml, which is
-  committed. The evaluation writes that file when it chooses the threshold.
-  Search, the HTTP routes and the evaluation all read it, so they always
-  agree.
+- Values that are the same on every machine: the two "too weak to be a
+  match" thresholds and the default search mode. They live in settings.toml,
+  which is committed. The evaluation writes that file when it chooses them on
+  the dev questions. Search, the HTTP routes and the evaluation all read it,
+  so they always agree.
 - The one value that differs between machines: where Postgres is. It comes
   from the environment variable DATABASE_URL and is never committed.
 """
@@ -23,7 +23,7 @@ from guide_search.search import MODES
 SETTINGS_PATH = Path("settings.toml")
 
 # The first line of the file, so that a reader of the file knows not to edit it.
-FIRST_LINE = "# Written by the evaluation when it chooses the threshold. Not edited by hand."
+FIRST_LINE = "# Written by the evaluation when it chooses these values on dev. Not edited by hand."
 
 
 class ConfigError(RuntimeError):
@@ -32,10 +32,13 @@ class ConfigError(RuntimeError):
 
 @dataclass(frozen=True)
 class Settings:
-    """The two values in settings.toml."""
+    """The three values in settings.toml."""
 
-    threshold: float      # a best similarity below this is "no_match"
+    threshold: float      # in vector and hybrid mode, a best similarity below this is "no_match"
     default_mode: str     # the search mode used when a request names none
+    # In rerank mode, a best reranker score below this is "no_match". The
+    # default refuses nothing, because the reranker's scores are never below 0.
+    rerank_threshold: float = 0.0
 
 
 def load_settings(path: Path = SETTINGS_PATH) -> Settings:
@@ -53,14 +56,23 @@ def load_settings(path: Path = SETTINGS_PATH) -> Settings:
     except tomllib.TOMLDecodeError as error:
         raise ConfigError(f"The settings file {path} is not valid TOML: {error}") from error
 
-    if set(data) != {"threshold", "default_mode"}:
+    if set(data) != {"threshold", "default_mode", "rerank_threshold"}:
         raise ConfigError(
-            f"The settings file {path} must hold exactly two values: threshold and default_mode."
+            f"The settings file {path} must hold exactly three values: "
+            "threshold, default_mode and rerank_threshold."
         )
-    settings = Settings(threshold=data["threshold"], default_mode=data["default_mode"])
+    settings = Settings(
+        threshold=data["threshold"],
+        default_mode=data["default_mode"],
+        rerank_threshold=data["rerank_threshold"],
+    )
     _check(settings)
     # TOML reads "0" as a whole number. The rest of the code expects a float.
-    return Settings(threshold=float(settings.threshold), default_mode=settings.default_mode)
+    return Settings(
+        threshold=float(settings.threshold),
+        default_mode=settings.default_mode,
+        rerank_threshold=float(settings.rerank_threshold),
+    )
 
 
 def save_settings(settings: Settings, path: Path = SETTINGS_PATH) -> None:
@@ -72,6 +84,7 @@ def save_settings(settings: Settings, path: Path = SETTINGS_PATH) -> None:
         FIRST_LINE,
         f"threshold = {float(settings.threshold)!r}",
         f'default_mode = "{settings.default_mode}"',
+        f"rerank_threshold = {float(settings.rerank_threshold)!r}",
     ]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -88,11 +101,13 @@ def database_url() -> str:
 
 
 def _check(settings: Settings) -> None:
-    """Raise ConfigError unless the threshold is a number and the mode is a known one."""
-    # True and False count as numbers in Python, so they are ruled out by name.
-    is_number = isinstance(settings.threshold, (int, float)) and not isinstance(settings.threshold, bool)
-    if not is_number:
-        raise ConfigError(f"threshold must be a number, not {settings.threshold!r}.")
+    """Raise ConfigError unless both thresholds are numbers and the mode is a known one."""
+    for name in ("threshold", "rerank_threshold"):
+        value = getattr(settings, name)
+        # True and False count as numbers in Python, so they are ruled out by name.
+        is_number = isinstance(value, (int, float)) and not isinstance(value, bool)
+        if not is_number:
+            raise ConfigError(f"{name} must be a number, not {value!r}.")
     if settings.default_mode not in MODES:
         raise ConfigError(
             f"default_mode must be one of {', '.join(MODES)}, not {settings.default_mode!r}."

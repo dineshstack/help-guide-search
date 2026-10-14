@@ -35,7 +35,7 @@ def write(path: Path, text: str) -> Path:
 def test_settings_come_back_unchanged_after_save_and_load(tmp_path: Path):
     path = tmp_path / "settings.toml"
     # A threshold as the evaluation produces it: a midpoint, not rounded.
-    settings = Settings(threshold=0.8500000000000001, default_mode="vector")
+    settings = Settings(threshold=0.8500000000000001, default_mode="vector", rerank_threshold=0.3125)
 
     save_settings(settings, path)
 
@@ -46,6 +46,7 @@ def test_the_committed_settings_file_loads():
     settings = load_settings(COMMITTED_SETTINGS)
 
     assert isinstance(settings.threshold, float)
+    assert isinstance(settings.rerank_threshold, float)
     assert settings.default_mode in MODES
 
 
@@ -60,12 +61,13 @@ def test_saving_what_the_committed_file_holds_gives_the_same_file(tmp_path: Path
 
 
 def test_a_threshold_written_as_a_whole_number_is_read_as_a_float(tmp_path: Path):
-    path = write(tmp_path / "settings.toml", 'threshold = 0\ndefault_mode = "hybrid"\n')
+    path = write(tmp_path / "settings.toml", 'threshold = 0\ndefault_mode = "hybrid"\nrerank_threshold = 0\n')
 
     settings = load_settings(path)
 
-    assert settings == Settings(threshold=0.0, default_mode="hybrid")
+    assert settings == Settings(threshold=0.0, default_mode="hybrid", rerank_threshold=0.0)
     assert isinstance(settings.threshold, float)
+    assert isinstance(settings.rerank_threshold, float)
 
 
 # ---------------------------------------------------------------------------
@@ -86,21 +88,27 @@ def test_a_missing_settings_file_raises_config_error_naming_the_file(tmp_path: P
     "text",
     [
         "threshold = = 0.5\n",
-        'default_mode = "hybrid"\n',
-        "threshold = 0.5\n",
-        'threshold = 0.5\ndefault_mode = "hybrid"\nextra = 1\n',
-        'threshold = "high"\ndefault_mode = "hybrid"\n',
-        'threshold = true\ndefault_mode = "hybrid"\n',
-        'threshold = 0.5\ndefault_mode = "fuzzy"\n',
-        "threshold = 0.5\ndefault_mode = 3\n",
+        'default_mode = "hybrid"\nrerank_threshold = 0.5\n',
+        "threshold = 0.5\nrerank_threshold = 0.5\n",
+        'threshold = 0.5\ndefault_mode = "hybrid"\n',
+        'threshold = 0.5\ndefault_mode = "hybrid"\nrerank_threshold = 0.5\nextra = 1\n',
+        'threshold = "high"\ndefault_mode = "hybrid"\nrerank_threshold = 0.5\n',
+        'threshold = true\ndefault_mode = "hybrid"\nrerank_threshold = 0.5\n',
+        'threshold = 0.5\ndefault_mode = "hybrid"\nrerank_threshold = "high"\n',
+        'threshold = 0.5\ndefault_mode = "hybrid"\nrerank_threshold = false\n',
+        'threshold = 0.5\ndefault_mode = "fuzzy"\nrerank_threshold = 0.5\n',
+        "threshold = 0.5\ndefault_mode = 3\nrerank_threshold = 0.5\n",
     ],
     ids=[
         "not TOML",
         "no threshold",
         "no default_mode",
+        "no rerank_threshold",
         "an extra value",
         "threshold is text",
         "threshold is true",
+        "rerank_threshold is text",
+        "rerank_threshold is false",
         "unknown mode",
         "mode is a number",
     ],

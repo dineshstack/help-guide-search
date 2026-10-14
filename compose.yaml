@@ -45,7 +45,7 @@ services:
       DATABASE_URL: postgresql://guides_reader:${READER_PASSWORD}@db:5432/guides
       # Only the answer agent needs a key. Without one, search still works.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      # The container may use 2 CPUs (below). Without this the model would start
+      # The container may use 2 CPUs (below). Without this the models would start
       # one thread per core of the whole machine and they would get in each other's way.
       OMP_NUM_THREADS: "2"
     ports:
@@ -56,8 +56,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
-      start_period: 30s
-    mem_limit: 3g
+      # Loading the two models takes a while, the reranker most of it.
+      start_period: 120s
+    # The two models need about 3 GB together; the rest is headroom.
+    mem_limit: 5g
     cpus: 2.0
 
   tools:
@@ -77,9 +79,9 @@ services:
     volumes:
       # The report and results are written here, so they land on the host.
       - ./evaluation:/app/evaluation
-      # The threshold lives here. Shared, so choosing it in a container is kept.
+      # The thresholds live here. Shared, so choosing them in a container is kept.
       - ./settings.toml:/app/settings.toml
-    mem_limit: 3g
+    mem_limit: 5g
     cpus: 2.0
 
 volumes:

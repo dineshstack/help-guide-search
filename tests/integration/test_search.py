@@ -1,13 +1,13 @@
-"""Tests for search against a real Postgres, in all three modes.
+"""Tests for search against a real Postgres, in all four modes.
 
 They need a real Postgres (TEST_DATABASE_URL). Most tests search the five
 invented guides in tests/fixtures/five_guides.json. A few build their own tiny
 guides, where the point of the test needs more than 20 passages or an exact
 tie.
 
-The embedder is the fake one. It only counts words, so its scores are on a
-different scale from the real model's: the tests pass their own threshold and
-never the one in settings.toml.
+The embedder and the reranker are the fake ones. They only count words, so
+their scores are on a different scale from the real models': the tests pass
+their own thresholds and never the ones in settings.toml.
 """
 
 from pathlib import Path
@@ -18,6 +18,7 @@ import pytest
 from guide_search.embedding import FakeEmbedder
 from guide_search.ingest import ingest
 from guide_search.ranking import GuideDetail, PassageHit, SearchResult
+from guide_search.reranking import FakeReranker
 from guide_search.search import MODES, NO_MATCH, read_guide, search
 from guide_search.snapshot import PUBLIC_PAGE_PREFIX, Guide, load_snapshot
 from guide_search.store import IndexNotReady
@@ -129,7 +130,7 @@ def indexed(conn: psycopg.Connection) -> psycopg.Connection:
 def test_each_mode_puts_the_guide_the_question_is_about_first(
     indexed: psycopg.Connection, mode: str, question: str, slug: str
 ):
-    result = search(indexed, FakeEmbedder(), question, mode, THRESHOLD)
+    result = search(indexed, FakeEmbedder(), question, mode, THRESHOLD, FakeReranker())
 
     assert result.query == question
     assert result.mode == mode
@@ -204,7 +205,7 @@ def test_only_the_top_20_passages_are_candidates(conn: psycopg.Connection, mode:
     fillers = [make_guide(n, f"filler-{n}", f"Filler {n}", "glue glue pot") for n in range(2, 23)]
     ingest(conn, [target] + fillers, FakeEmbedder())
 
-    result = search(conn, FakeEmbedder(), "glue", mode, 0.0)
+    result = search(conn, FakeEmbedder(), "glue", mode, 0.0, FakeReranker())
 
     assert result.guides[0].slug == "target"
     assert [passage.heading for passage in result.guides[0].passages] == ["Strong"]
@@ -224,10 +225,10 @@ def test_two_guides_made_of_the_same_words_come_in_guide_id_order_whatever_was_i
     guide_7 = make_guide(7, "kite-blue", "Kite blue", "Tail and string.")
 
     ingest(conn, [guide_7, guide_4], FakeEmbedder())  # guide 7 gets the lower row ids
-    first = search(conn, FakeEmbedder(), "blue kite tail", mode, THRESHOLD)
+    first = search(conn, FakeEmbedder(), "blue kite tail", mode, THRESHOLD, FakeReranker())
     conn.execute("DELETE FROM passages")
     ingest(conn, [guide_4, guide_7], FakeEmbedder())  # now guide 4 does
-    second = search(conn, FakeEmbedder(), "blue kite tail", mode, THRESHOLD)
+    second = search(conn, FakeEmbedder(), "blue kite tail", mode, THRESHOLD, FakeReranker())
 
     assert [guide.guide_id for guide in first.guides] == [4, 7]
     assert second == first
@@ -260,10 +261,10 @@ def test_results_do_not_depend_on_the_order_in_which_guides_were_ingested(
     guides = fixture_guides()
 
     ingest(conn, guides, FakeEmbedder())
-    first = [search(conn, FakeEmbedder(), question, mode, 0.0) for question in questions]
+    first = [search(conn, FakeEmbedder(), question, mode, 0.0, FakeReranker()) for question in questions]
     conn.execute("DELETE FROM passages")
     ingest(conn, list(reversed(guides)), FakeEmbedder())
-    second = [search(conn, FakeEmbedder(), question, mode, 0.0) for question in questions]
+    second = [search(conn, FakeEmbedder(), question, mode, 0.0, FakeReranker()) for question in questions]
 
     assert second == first
 
@@ -278,7 +279,7 @@ def test_a_tie_at_the_edge_of_the_top_20_is_cut_by_guide_id_not_by_row_id(
     guides = [make_guide(n, f"filler-{n}", f"Filler {n}", "glue pot") for n in range(1, 26)]
     ingest(conn, list(reversed(guides)), FakeEmbedder())
 
-    result = search(conn, FakeEmbedder(), "glue", mode, THRESHOLD)
+    result = search(conn, FakeEmbedder(), "glue", mode, THRESHOLD, FakeReranker())
 
     assert [guide.guide_id for guide in result.guides] == [1, 2, 3]
 
@@ -396,13 +397,14 @@ def test_keyword_full_sentence_matches_on_any_of_its_words(indexed: psycopg.Conn
 def test_a_question_with_no_words_at_all_is_answered_without_an_error(
     indexed: psycopg.Connection, mode: str, question: str
 ):
-    result = search(indexed, FakeEmbedder(), question, mode, THRESHOLD)
+    result = search(indexed, FakeEmbedder(), question, mode, THRESHOLD, FakeReranker(), THRESHOLD)
 
     # What this test shows for every mode is: no error. Keyword mode always
-    # gives no_match here, because there is no word to look for. In vector and
-    # hybrid mode the threshold decides, as for any other question. It is a
-    # no_match here only because the fake embedder scores wordless text 0,
-    # which is below these tests' own threshold of 0.3.
+    # gives no_match here, because there is no word to look for. In vector,
+    # hybrid and rerank mode the thresholds decide, as for any other question.
+    # It is a no_match here only because the fake embedder and the fake
+    # reranker score wordless text 0, which is below these tests' own
+    # threshold of 0.3.
     assert result.reason == NO_MATCH
     assert result.guides == []
 
@@ -413,7 +415,7 @@ def test_a_question_of_several_hundred_words_is_searched_without_an_error(indexe
     # no cap, so it must cope with a very long one. Threshold 0: never refuse.
     question = " ".join(f"filler{number}" for number in range(300)) + " sail"
 
-    result = search(indexed, FakeEmbedder(), question, mode, 0.0)
+    result = search(indexed, FakeEmbedder(), question, mode, 0.0, FakeReranker())
 
     assert result.guides != []
     if mode == "keyword":
@@ -425,7 +427,7 @@ def test_a_question_of_several_hundred_words_is_searched_without_an_error(indexe
 def test_a_question_with_a_control_character_is_searched_as_its_words(indexed: psycopg.Connection, mode: str):
     # Postgres refuses text that contains a NUL character. Only the words of
     # a question are ever sent to it, so the character never gets there.
-    result = search(indexed, FakeEmbedder(), "torn\x00sail\x07", mode, 0.0)
+    result = search(indexed, FakeEmbedder(), "torn\x00sail\x07", mode, 0.0, FakeReranker())
 
     assert slugs(result)[0] == "mend-a-torn-sail"
 
@@ -598,20 +600,20 @@ def test_hybrid_score_is_the_fusion_score(indexed: psycopg.Connection):
 @pytest.mark.parametrize("mode", MODES)
 def test_an_empty_table_raises_index_not_ready_in_every_mode(conn: psycopg.Connection, mode: str):
     with pytest.raises(IndexNotReady):
-        search(conn, FakeEmbedder(), "mend a torn sail", mode, THRESHOLD)
+        search(conn, FakeEmbedder(), "mend a torn sail", mode, THRESHOLD, FakeReranker())
 
 
 @pytest.mark.parametrize("mode", MODES)
 def test_a_table_filled_by_another_model_raises_index_not_ready(indexed: psycopg.Connection, mode: str):
     with pytest.raises(IndexNotReady):
-        search(indexed, OtherModelEmbedder(), "mend a torn sail", mode, THRESHOLD)
+        search(indexed, OtherModelEmbedder(), "mend a torn sail", mode, THRESHOLD, FakeReranker())
 
 
 @pytest.mark.parametrize("mode", MODES)
 def test_passages_stored_for_another_model_are_never_returned(indexed: psycopg.Connection, mode: str):
     indexed.execute("UPDATE passages SET embedding_model = 'fake-2' WHERE slug = 'replace-a-snapped-spar'")
 
-    result = search(indexed, FakeEmbedder(), "replace a snapped spar", mode, 0.0)
+    result = search(indexed, FakeEmbedder(), "replace a snapped spar", mode, 0.0, FakeReranker())
 
     assert "replace-a-snapped-spar" not in slugs(result)
 
@@ -675,3 +677,95 @@ def test_read_guide_returns_both_pieces_of_a_section_that_was_cut_in_two(indexed
 
 def test_read_guide_returns_none_for_an_unknown_slug(indexed: psycopg.Connection):
     assert read_guide(indexed, "no-such-guide") is None
+
+
+# ---------------------------------------------------------------------------
+# Rerank mode
+# ---------------------------------------------------------------------------
+
+
+class OneSectionReranker:
+    """A reranker that scores one section 0.9 and every other passage 0.1. It records what it was given."""
+
+    model_id = "one-section"
+
+    def __init__(self, heading: str) -> None:
+        self.heading = heading
+        self.calls: list[tuple[str, list[str]]] = []
+
+    def score(self, question: str, texts: list[str]) -> list[float]:
+        self.calls.append((question, texts))
+        # A passage's text is its title, its heading and its content, one per line.
+        return [0.9 if text.split("\n")[1] == self.heading else 0.1 for text in texts]
+
+
+def test_rerank_puts_first_the_passage_the_reranker_scores_highest(indexed: psycopg.Connection):
+    hybrid = search(indexed, FakeEmbedder(), "mend a torn sail", "hybrid", THRESHOLD)
+    reranked = search(
+        indexed, FakeEmbedder(), "mend a torn sail", "rerank", THRESHOLD, OneSectionReranker("Fit the new spar")
+    )
+
+    # Hybrid search puts the sail guide first. The reranker prefers a section
+    # of the spar guide, so rerank search puts that guide first.
+    assert slugs(hybrid)[0] == "mend-a-torn-sail"
+    assert slugs(reranked)[0] == "replace-a-snapped-spar"
+    assert reranked.guides[0].passages[0].heading == "Fit the new spar"
+    assert reranked.guides[0].score == 0.9
+    assert reranked.best_rerank_score == 0.9
+
+
+def test_every_passage_of_a_rerank_result_carries_its_reranker_score(indexed: psycopg.Connection):
+    result = search(indexed, FakeEmbedder(), "mend a torn sail", "rerank", THRESHOLD, FakeReranker())
+
+    scores = [passage.rerank_score for passage in all_passages(result)]
+    assert None not in scores
+    assert result.best_rerank_score == max(scores)
+    # The best similarity is still the vector search's, as in the other modes.
+    assert result.best_similarity == pytest.approx(best_fake_similarity(indexed, "mend a torn sail"))
+
+
+@pytest.mark.parametrize("mode", ["vector", "keyword", "hybrid"])
+def test_the_other_modes_carry_no_reranker_score(indexed: psycopg.Connection, mode: str):
+    result = search(indexed, FakeEmbedder(), "mend a torn sail", mode, THRESHOLD, FakeReranker())
+
+    assert result.best_rerank_score is None
+    assert {passage.rerank_score for passage in all_passages(result)} == {None}
+
+
+def test_the_reranker_reads_each_candidate_once_as_title_heading_and_text(indexed: psycopg.Connection):
+    reranker = OneSectionReranker("Patch the tear")
+
+    search(indexed, FakeEmbedder(), "mend a torn sail", "rerank", THRESHOLD, reranker)
+
+    [(question, texts)] = reranker.calls
+    assert question == "mend a torn sail"
+    # The same text that was embedded and keyword-indexed for each passage.
+    stored = {row[0] for row in indexed.execute("SELECT search_text FROM passages").fetchall()}
+    assert set(texts) <= stored
+    assert len(texts) == len(set(texts))
+
+
+def test_rerank_refuses_when_the_best_reranker_score_is_below_its_threshold(indexed: psycopg.Connection):
+    # The fake reranker's best score for this question is 0.4: "do" and "you"
+    # are 2 of its 5 words, and one passage has both.
+    result = search(indexed, FakeEmbedder(), NOT_COVERED, "rerank", 0.0, FakeReranker(), 0.5)
+
+    assert result.reason == NO_MATCH
+    assert result.guides == []
+    assert result.best_rerank_score == pytest.approx(0.4)
+    assert result.best_similarity is not None
+
+
+def test_rerank_mode_has_its_own_threshold_and_ignores_the_vector_one(indexed: psycopg.Connection):
+    # A similarity threshold of 0.99 refuses this question in hybrid mode.
+    hybrid = search(indexed, FakeEmbedder(), "mend a torn sail", "hybrid", 0.99)
+    reranked = search(indexed, FakeEmbedder(), "mend a torn sail", "rerank", 0.99, FakeReranker(), 0.0)
+
+    assert hybrid.reason == NO_MATCH
+    assert reranked.reason is None
+    assert slugs(reranked)[0] == "mend-a-torn-sail"
+
+
+def test_rerank_mode_without_a_reranker_is_an_error(indexed: psycopg.Connection):
+    with pytest.raises(ValueError, match="reranker"):
+        search(indexed, FakeEmbedder(), "mend a torn sail", "rerank", THRESHOLD)

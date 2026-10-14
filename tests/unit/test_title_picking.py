@@ -554,6 +554,24 @@ def test_the_command_sends_only_reviewed_questions_of_the_requested_split(
     assert sent_questions(client) == [DEV_ONE.question, DEV_NO_GUIDE.question]
 
 
+def test_the_command_reads_the_fresh_file_for_the_fresh_split(
+    tmp_path: Path, api_key: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    files = Files(tmp_path, ALL_QUESTIONS)
+    fresh = make_question("fr-001", "Where do I see unpaid bills?", split="fresh")
+    save_questions(tmp_path / "questions_fresh.jsonl", [fresh])
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("guide_search.evaluation.title_picking.FRESH_PATH", Path("questions_fresh.jsonl"))
+    client = FakeClient([reply(["invoices"])])
+
+    # No --questions: the fresh split is read from the fresh file.
+    arguments = ["--split", "fresh", "--snapshot", str(files.snapshot), "--results", str(files.results)]
+    status = main(arguments, make_client=lambda: client)
+
+    assert status == 0
+    assert sent_questions(client) == [fresh.question]
+
+
 def test_the_command_appends_one_line_for_each_question_it_sent(tmp_path: Path, api_key: None) -> None:
     files = Files(tmp_path, ALL_QUESTIONS)
 

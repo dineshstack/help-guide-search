@@ -10,6 +10,7 @@ from guide_search.evaluation.metrics import (
     AnswerableSummary,
     Outcome,
     UnanswerableSummary,
+    choose_default_mode,
     choose_threshold,
     hit_at,
     passage_hit,
@@ -563,3 +564,54 @@ def test_the_sign_test_is_symmetric() -> None:
 def test_the_sign_test_refuses_negative_counts() -> None:
     with pytest.raises(ValueError):
         sign_test(-1, 3)
+
+
+# --- the default mode -------------------------------------------------------
+
+# Two answerable questions whose answer sits in the section "Steps" of
+# "invoices", and one question the guides cannot answer.
+DEFAULT_MODE_QUESTIONS = [
+    make_question("en-001", headings={"invoices": ("Steps",)}),
+    make_question("en-002", headings={"invoices": ("Steps",)}),
+    make_question("na-001", expected=()),
+]
+ANSWERING = {"invoices": ("Steps",)}
+ELSEWHERE = {"invoices": ("Troubleshooting",)}
+
+
+def outcomes(en_001: dict, en_002: dict, na_001_refused: bool) -> dict[str, Outcome]:
+    """Both answerable questions get the guide "invoices", with the passages given."""
+    return {
+        "en-001": returned("en-001", ("invoices",), en_001),
+        "en-002": returned("en-002", ("invoices",), en_002),
+        "na-001": refused("na-001") if na_001_refused else returned("na-001", ("invoices",), ELSEWHERE),
+    }
+
+
+def test_rerank_becomes_the_default_when_it_returns_more_answering_passages():
+    hybrid = outcomes(ANSWERING, ELSEWHERE, na_001_refused=False)
+    rerank = outcomes(ANSWERING, ANSWERING, na_001_refused=False)
+
+    assert choose_default_mode(DEFAULT_MODE_QUESTIONS, hybrid, rerank) == "rerank"
+
+
+def test_a_tie_keeps_hybrid():
+    hybrid = outcomes(ANSWERING, ELSEWHERE, na_001_refused=False)
+    rerank = outcomes(ELSEWHERE, ANSWERING, na_001_refused=False)
+
+    assert choose_default_mode(DEFAULT_MODE_QUESTIONS, hybrid, rerank) == "hybrid"
+
+
+def test_rerank_does_not_become_the_default_if_it_refuses_fewer_unanswerable_questions():
+    hybrid = outcomes(ANSWERING, ELSEWHERE, na_001_refused=True)
+    rerank = outcomes(ANSWERING, ANSWERING, na_001_refused=False)
+
+    assert choose_default_mode(DEFAULT_MODE_QUESTIONS, hybrid, rerank) == "hybrid"
+
+
+def test_the_right_guide_with_the_wrong_passage_does_not_count_for_the_default_mode():
+    # Both modes find the right guide every time. Only the passages differ.
+    hybrid = outcomes(ELSEWHERE, ELSEWHERE, na_001_refused=False)
+    rerank = outcomes(ELSEWHERE, ANSWERING, na_001_refused=False)
+
+    assert choose_default_mode(DEFAULT_MODE_QUESTIONS, hybrid, rerank) == "rerank"

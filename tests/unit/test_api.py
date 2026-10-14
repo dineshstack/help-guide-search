@@ -138,10 +138,12 @@ def test_search_returns_200_with_the_documented_json_shape():
                         "position": 2,
                         "text": "Open the job card and press Print.",
                         "similarity": 0.88,
+                        "rerank_score": None,
                     }
                 ],
             }
         ],
+        "best_rerank_score": None,
     }
 
 
@@ -163,6 +165,7 @@ def test_search_no_match_returns_200_with_no_guides_and_the_reason():
         "reason": "no_match",
         "best_similarity": 0.41,
         "guides": [],
+        "best_rerank_score": None,
     }
 
 
@@ -329,18 +332,21 @@ def test_guide_returns_its_title_url_and_passages_in_order():
                 "position": 0,
                 "text": "A job card lists the work.",
                 "similarity": None,
+                "rerank_score": None,
             },
             {
                 "heading": "Before you start",
                 "position": 1,
                 "text": "Add a printer.",
                 "similarity": None,
+                "rerank_score": None,
             },
             {
                 "heading": "Choose a printer",
                 "position": 2,
                 "text": "Press Print.",
                 "similarity": None,
+                "rerank_score": None,
             },
         ],
     }

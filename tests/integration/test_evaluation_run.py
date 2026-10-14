@@ -55,6 +55,7 @@ from guide_search.evaluation.title_picking import (
     request_hash,
 )
 from guide_search.ingest import ingest
+from guide_search.reranking import FakeReranker
 from guide_search.search import MODES
 from guide_search.snapshot import PUBLIC_PAGE_PREFIX, Guide, load_snapshot
 
@@ -214,7 +215,7 @@ def indexed(conn: psycopg.Connection) -> psycopg.Connection:
 def test_every_mode_puts_the_expected_guide_first_for_the_dev_questions_the_guides_answer(
     indexed: psycopg.Connection, mode: str
 ):
-    outcomes = search_outcomes(indexed, FakeEmbedder(), DEV, mode, THRESHOLD)
+    outcomes = search_outcomes(indexed, FakeEmbedder(), DEV, mode, THRESHOLD, FakeReranker())
 
     for question in [SUNDAY, SMS, SPAR_OR_SAIL]:
         outcome = outcomes[question.id]
@@ -281,7 +282,8 @@ def test_vector_and_hybrid_record_the_best_similarity_and_keyword_records_none(
 
 def test_a_refused_question_has_no_slugs_no_headings_and_no_text(indexed: psycopg.Connection):
     for mode in MODES:
-        outcome = search_outcomes(indexed, FakeEmbedder(), [BELLS], mode, THRESHOLD)["na-001"]
+        # The fake reranker's best score for this question is 0.4, so 0.5 refuses it.
+        outcome = search_outcomes(indexed, FakeEmbedder(), [BELLS], mode, THRESHOLD, FakeReranker(), 0.5)["na-001"]
 
         assert outcome.refused is True
         assert outcome.slugs == ()
@@ -474,7 +476,7 @@ def test_the_threshold_chosen_from_the_dev_similarities_refuses_the_unanswerable
     assert similarities["na-001"] < choice.threshold < lowest_answerable
 
     for mode in ["vector", "hybrid"]:
-        outcomes = search_outcomes(indexed, FakeEmbedder(), DEV, mode, choice.threshold)
+        outcomes = search_outcomes(indexed, FakeEmbedder(), DEV, mode, choice.threshold, FakeReranker())
         assert outcomes["na-001"].refused is True
         assert [outcomes[q.id].refused for q in [SUNDAY, SMS, SPAR_OR_SAIL]] == [False, False, False]
 
@@ -503,6 +505,10 @@ class Files:
         self.baseline = folder / "title_picking.jsonl"
         self.settings = folder / "settings.toml"
         self.corrections = folder / "corrections.jsonl"
+        # Neither file is written by default, so the repository's own files are never read.
+        self.fresh = folder / "questions_fresh.jsonl"
+        self.choice = folder / "reranker_choice.json"
+        self.tokens = folder / "tokens.json"
         self.output = folder / "out"
         self.results = self.output / "results.json"
         self.report = self.output / "report.md"
@@ -520,8 +526,9 @@ class Files:
         arguments = [command, "--snapshot", str(FIXTURE), "--questions", str(self.questions)]
         arguments += ["--baseline", str(self.baseline), "--settings", str(self.settings)]
         arguments += ["--corrections", str(self.corrections), "--output-dir", str(self.output)]
+        arguments += ["--fresh", str(self.fresh), "--choice", str(self.choice), "--tokens", str(self.tokens)]
         arguments += list(more)
-        return main(arguments, embedder=embedder or FakeEmbedder())
+        return main(arguments, embedder=embedder or FakeEmbedder(), reranker=FakeReranker())
 
     def final(self, *more: str, embedder: FakeEmbedder | None = None) -> int:
         """Run `final`, telling it the two things it cannot run without."""
@@ -566,7 +573,7 @@ def files_after_threshold(
 # --- threshold ---
 
 
-def test_threshold_writes_the_chosen_value_to_the_settings_file_and_keeps_the_default_mode(
+def test_threshold_writes_both_chosen_values_and_the_default_mode_to_the_settings_file(
     tmp_path: Path, ready: None
 ):
     files = Files(tmp_path, threshold=0.0)
@@ -578,7 +585,14 @@ def test_threshold_writes_the_chosen_value_to_the_settings_file_and_keeps_the_de
     # Between "do you sell bicycle bells" (0.22) and the weakest answerable
     # dev question, "a snapped spar or a torn sail" (0.51).
     assert 0.22 < settings.threshold < 0.50
-    assert settings.default_mode == "keyword"
+    # The fake reranker's best scores: 1.0, 1.0 and 0.5 for the three
+    # answerable dev questions, 0.4 for "do you sell bicycle bells". The rule
+    # takes the midpoint between 0.4 and 0.5.
+    assert settings.rerank_threshold == pytest.approx(0.45)
+    # Both modes return an answering passage for all three answerable dev
+    # questions and refuse the fourth. A tie keeps hybrid, replacing the
+    # file's starting value.
+    assert settings.default_mode == "hybrid"
 
 
 def test_threshold_prints_the_candidates_the_gaps_and_the_three_ranges(
@@ -596,6 +610,9 @@ def test_threshold_prints_the_candidates_the_gaps_and_the_three_ranges(
     assert "| English, answerable | 3 |" in printed
     assert "| Arabic, answerable | 0 |" in printed    # the Arabic question is not reviewed
     assert "| Unanswerable | 1 |" in printed
+    assert "## The rerank threshold" in printed
+    assert "## The default mode" in printed
+    assert "The rule's choice is hybrid." in printed
     assert str(files.settings) in printed
 
 
@@ -605,15 +622,11 @@ def test_threshold_looks_at_dev_questions_only(tmp_path: Path, ready: None):
 
     files.run("threshold", embedder=embedder)
 
-    # The warm-up query that every pass starts with, then the four reviewed
-    # dev questions, and nothing else: no test question, no unreviewed one.
-    assert embedder.queries == [
-        WARM_UP_QUESTION,
-        SUNDAY.question,
-        SMS.question,
-        SPAR_OR_SAIL.question,
-        BELLS.question,
-    ]
+    # Each pass starts with the warm-up query, then searches the four reviewed
+    # dev questions. Nothing else is searched: no test question, no unreviewed one.
+    reviewed_dev = [SUNDAY.question, SMS.question, SPAR_OR_SAIL.question, BELLS.question]
+    assert set(embedder.queries) == {WARM_UP_QUESTION, *reviewed_dev}
+    assert embedder.queries[:5] == [WARM_UP_QUESTION, *reviewed_dev]
 
 
 def test_threshold_writes_no_report_and_no_results(tmp_path: Path, ready: None):
@@ -713,11 +726,12 @@ def test_the_results_hold_one_entry_for_each_reviewed_question_and_method(tmp_pa
 
     entries = files.read_results()["outcomes"]
     pairs = [(entry["question_id"], entry["method"]) for entry in entries]
-    methods = ["title_picking", "vector", "keyword", "hybrid"]
+    methods = ["title_picking", "vector", "keyword", "hybrid", "rerank"]
     assert pairs == [(question_id, method) for question_id in REVIEWED_IDS for method in methods]
     for entry in entries:
         assert set(entry) == {
             "question_id", "split", "method", "refused", "slugs", "hit_at_3", "passage_hit", "best_similarity",
+            "best_rerank_score",
         }
 
 
@@ -764,6 +778,7 @@ def test_the_results_tell_a_guide_hit_from_a_passage_hit(tmp_path: Path, ready: 
     # With one dev question, and the guides can answer it, the rule gives 0:
     # no threshold does better than never refusing. So 0.0 is the right value here.
     files = Files(tmp_path, questions=[question], lines=[baseline_line(question, [SAIL])], threshold=0.0)
+    assert files.run("threshold") == 0
 
     files.final()
 
@@ -903,9 +918,11 @@ def test_final_stops_before_any_test_question_is_searched_when_the_threshold_is_
     status = files.final(embedder=embedder)
 
     assert status == 1
+    # The file's starting values are all three wrong: 0.0, 0.0 and keyword.
     assert capsys.readouterr().err.strip() == (
-        "The threshold in settings.toml is not the one the rule gives on dev. "
-        "Run `threshold` first. No test question was searched."
+        "settings.toml does not hold the values the rules give on dev "
+        "(threshold, rerank_threshold, default_mode). Run `threshold` first. "
+        "No test or fresh question was searched."
     )
     assert not files.output.exists()
     # The dev questions were searched: the rule works on their scores.
@@ -923,12 +940,37 @@ def test_final_accepts_a_threshold_that_differs_from_the_rule_only_in_its_last_d
     files = files_after_threshold(tmp_path)
     chosen = load_settings(files.settings)
 
-    save_settings(Settings(threshold=chosen.threshold + 0.0004, default_mode=chosen.default_mode), files.settings)
+    save_settings(replace(chosen, threshold=chosen.threshold + 0.0004), files.settings)
     close_enough = files.final()
-    save_settings(Settings(threshold=chosen.threshold + 0.0006, default_mode=chosen.default_mode), files.settings)
+    save_settings(replace(chosen, threshold=chosen.threshold + 0.0006), files.settings)
     too_far = files.final()
 
     assert (close_enough, too_far) == (0, 1)
+
+
+def test_final_holds_the_rerank_threshold_to_the_same_tolerance(tmp_path: Path, ready: None):
+    files = files_after_threshold(tmp_path)
+    chosen = load_settings(files.settings)
+
+    save_settings(replace(chosen, rerank_threshold=chosen.rerank_threshold + 0.0004), files.settings)
+    close_enough = files.final()
+    save_settings(replace(chosen, rerank_threshold=chosen.rerank_threshold + 0.0006), files.settings)
+    too_far = files.final()
+
+    assert (close_enough, too_far) == (0, 1)
+
+
+def test_final_stops_when_the_default_mode_is_not_the_one_the_rule_gives(
+    tmp_path: Path, ready: None, capsys: pytest.CaptureFixture[str]
+):
+    files = files_after_threshold(tmp_path)
+    save_settings(replace(load_settings(files.settings), default_mode="rerank"), files.settings)
+
+    status = files.final()
+
+    assert status == 1
+    assert "(default_mode)" in capsys.readouterr().err
+    assert not files.output.exists()
 
 
 def test_final_does_not_change_the_settings_file(tmp_path: Path, ready: None):

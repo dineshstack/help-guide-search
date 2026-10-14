@@ -114,8 +114,9 @@ def build_server(backend: Backend) -> FastMCP:
         "no_match", nothing close enough was found.
 
         mode is optional. Leave it out for the server's default, or pass
-        "hybrid" (meaning and keywords together), "vector" (meaning only) or
-        "keyword" (keywords only).
+        "rerank" (meaning and keywords, then each passage checked against the
+        question), "hybrid" (meaning and keywords together), "vector" (meaning
+        only) or "keyword" (keywords only).
         """
         try:
             cleaned = clean_question(question)
@@ -168,10 +169,16 @@ def main() -> None:
     # Imported here and not at the top, because loading the model imports
     # torch, which takes seconds. Importing this module must stay quick.
     from guide_search import config
+    from guide_search.cross_encoder import CrossEncoderReranker
     from guide_search.e5 import E5Embedder
     from guide_search.service import Service
 
-    service = Service(config.database_url(), E5Embedder(), config.load_settings())
+    service = Service(
+        config.database_url(),
+        E5Embedder(),
+        config.load_settings(),
+        reranker=CrossEncoderReranker(),
+    )
     # stdio is the default transport. The banner is switched off so that
     # nothing but the protocol's own messages can end up on standard output.
     build_server(service).run(show_banner=False)

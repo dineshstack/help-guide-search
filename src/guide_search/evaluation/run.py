@@ -4,29 +4,33 @@
     uv run --env-file .env python -m guide_search.evaluation.run dev
     uv run --env-file .env python -m guide_search.evaluation.run final --questions-commit COMMIT --prompt-revisions N
 
-- threshold  chooses the "too weak to be a match" threshold on the dev
-             questions, writes it to settings.toml and prints how it was chosen.
-- dev        prints the dev tables for all four methods. It writes nothing.
-- final      scores dev and test with the threshold in settings.toml, and
-             writes evaluation/results.json and evaluation/report.md. It has
-             to be told two things that the report states and no file holds:
-             the git commit of the question file, and how often the baseline
-             prompt was revised after its first run (0 if never).
+- threshold  chooses on the dev questions the two "too weak to be a match"
+             thresholds (one on vector similarity, one on the reranker's
+             score) and the default search mode, writes them to
+             settings.toml and prints how they were chosen.
+- dev        prints the dev tables for all five methods. It writes nothing.
+- final      scores dev, test and the fresh questions with the values in
+             settings.toml, and writes evaluation/results.json and
+             evaluation/report.md. It has to be told two things that the
+             report states and no file holds: the git commit of the question
+             files, and how often the baseline prompt was revised after its
+             first run (0 if never).
 
 Three rules are kept here in code:
 
 - only questions marked `reviewed: true` are scored;
-- only `final` ever searches a test question, so nothing can be chosen on
-  test. Before it searches one, it checks that the threshold in settings.toml
-  is the one the rule gives on dev;
+- only `final` ever searches a test or fresh question, so nothing can be
+  chosen on them. Before it searches one, it checks that settings.toml holds
+  the values the rules give on dev;
 - when something cannot be trusted (a missing or out-of-date baseline answer,
   an empty index, an index that does not match the snapshot, a split that is
   not the one the script assigns) the command stops with a message and
   writes nothing.
 
-The search methods need the index in Postgres (DATABASE_URL) and the
-embedding model. Title-picking needs neither: its answers were stored when
-the baseline was run, and are read from evaluation/title_picking.jsonl.
+The search methods need the index in Postgres (DATABASE_URL), the embedding
+model and the reranker. Title-picking needs none of them: its answers were
+stored when the baseline was run, and are read from
+evaluation/title_picking.jsonl.
 """
 
 import argparse
@@ -49,8 +53,15 @@ from guide_search.config import (
     save_settings,
 )
 from guide_search.embedding import Embedder
-from guide_search.evaluation.metrics import Outcome, choose_threshold, hit_at, passage_hit
+from guide_search.evaluation.metrics import (
+    Outcome,
+    choose_default_mode,
+    choose_threshold,
+    hit_at,
+    passage_hit,
+)
 from guide_search.evaluation.questions import (
+    FRESH_PATH,
     QUESTIONS_PATH,
     SNAPSHOT_PATH,
     Question,
@@ -64,15 +75,18 @@ from guide_search.evaluation.report import (
     METHODS,
     RANKING_ONLY_MODES,
     THRESHOLD_TOLERANCE,
+    default_mode_lines,
     describe_machine,
     miss_lines,
     render_report,
+    rerank_threshold_lines,
     split_lines,
     threshold_lines,
 )
 from guide_search.evaluation.title_picking import RESULTS_PATH as BASELINE_PATH
 from guide_search.evaluation.title_picking import BaselineError, check_results, current_lines, load_results
 from guide_search.ranking import SearchResult
+from guide_search.reranking import Reranker
 from guide_search.search import MODES, NO_MATCH, search
 from guide_search.snapshot import Guide, load_snapshot
 from guide_search.store import DatabaseUnavailable, IndexNotReady, connect, count_passages
@@ -80,6 +94,12 @@ from guide_search.store import DatabaseUnavailable, IndexNotReady, connect, coun
 OUTPUT_DIR = Path("evaluation")
 RESULTS_FILE = "results.json"
 REPORT_FILE = "report.md"
+
+# Written by guide_search.evaluation.reranker_choice and by
+# guide_search.evaluation.tokens. Both are optional: the report has a section
+# for each only when its file is there.
+CHOICE_PATH = Path("evaluation/reranker_choice.json")
+TOKENS_PATH = Path("evaluation/tokens.json")
 
 # The log of label corrections. The file is optional: without it there are none.
 CORRECTIONS_PATH = Path("evaluation/corrections.jsonl")
@@ -91,9 +111,9 @@ CORRECTION_KEYS = ("question_id", "date", "old_expected_slugs", "new_expected_sl
 WARM_UP_QUESTION = "warm-up question"
 
 # The threshold that switches refusing off. Search refuses when the best
-# similarity is below the threshold. The real model's similarities lie far
-# above 0, and the fake embedder's are never below it, so with this value
-# vector and hybrid search always answer.
+# score is below the threshold. The real model's similarities lie far above 0,
+# the fake embedder's are never below it, and no reranker score is below it,
+# so with this value vector, hybrid and rerank search always answer.
 NEVER_REFUSE = 0.0
 
 
@@ -110,21 +130,25 @@ def search_outcomes(
     questions: list[Question],
     mode: str,
     threshold: float,
+    reranker: Reranker | None = None,
+    rerank_threshold: float = NEVER_REFUSE,
     clock: Callable[[], float] = time.perf_counter,
 ) -> dict[str, Outcome]:
     """Search for every reviewed question in one mode. Returns question id -> Outcome.
 
-    `clock` is only given by the tests, which need times they can predict.
+    `reranker` and `rerank_threshold` are only used in rerank mode. `clock`
+    is only given by the tests, which need times they can predict.
     """
-    search(conn, embedder, WARM_UP_QUESTION, mode, threshold)
+    search(conn, embedder, WARM_UP_QUESTION, mode, threshold, reranker, rerank_threshold)
 
     outcomes: dict[str, Outcome] = {}
     for question in questions:
         if not question.reviewed:
             continue
-        # The time is taken around the whole search, embedding the question included.
+        # The time is taken around the whole search, embedding the question
+        # and reranking included.
         started = clock()
-        result = search(conn, embedder, question.question, mode, threshold)
+        result = search(conn, embedder, question.question, mode, threshold, reranker, rerank_threshold)
         seconds = clock() - started
         outcomes[question.id] = _search_outcome(question.id, result, seconds)
     return outcomes
@@ -147,6 +171,7 @@ def _search_outcome(question_id: str, result: SearchResult, seconds: float) -> O
         chars=chars,
         seconds=seconds,
         best_similarity=result.best_similarity,
+        best_rerank_score=result.best_rerank_score,
     )
 
 
@@ -206,6 +231,43 @@ def check_questions(questions: list[Question], guides: list[Guide]) -> None:
     # script always deals the same split, so the file can be checked against it.
     if assign_split(questions) != questions:
         raise EvaluationError("The split in the question file is not the one assign-split gives.")
+
+
+def check_fresh(fresh: list[Question], questions: list[Question], guides: list[Guide]) -> None:
+    """Stop unless the fresh file fits the guides, is all "fresh", and shares no id with the other file."""
+    validate_questions(fresh, guide_headings(guides))
+    if any(question.split != "fresh" for question in fresh):
+        raise EvaluationError('Every question in the fresh file must have the split "fresh".')
+    shared = sorted({question.id for question in fresh} & {question.id for question in questions})
+    if shared:
+        raise EvaluationError("The fresh file uses ids that the question file uses too: " + ", ".join(shared))
+
+
+def load_optional_json(path: Path) -> dict | None:
+    """The content of a JSON file, or None when there is no such file."""
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def matching_tokens(tokens: dict | None, outcomes: dict[str, dict[str, Outcome]]) -> dict | None:
+    """The token counts, keeping only those made from the same result as this run's.
+
+    The counts are made by a separate command, which searches again, perhaps
+    on another machine. Search gives the same result for the same question,
+    but the last decimal places of a score can differ between machines and
+    turn a near-tie the other way. A count whose guides are not the ones this
+    run returned is left out, and `left_out` says how many were.
+    """
+    if tokens is None:
+        return None
+    kept = []
+    for entry in tokens["entries"]:
+        outcome = outcomes.get(entry["method"], {}).get(entry["question_id"])
+        if outcome is not None and list(outcome.slugs) == entry["slugs"] and outcome.refused == entry["refused"]:
+            kept.append(entry)
+    left_out = len([entry for entry in tokens["entries"] if entry not in kept])
+    return {**tokens, "entries": kept, "left_out": left_out}
 
 
 def check_index(conn: psycopg.Connection, embedder: Embedder, guides: list[Guide]) -> int:
@@ -311,18 +373,35 @@ def check_prompt_revisions(
         )
 
 
-def check_threshold(dev: list[Question], similarities: dict[str, float], threshold: float) -> None:
-    """Stop unless the threshold in the settings file is the one the rule gives on dev.
+def check_settings(
+    dev: list[Question],
+    similarities: dict[str, float],
+    rerank_scores: dict[str, float],
+    outcomes: dict[str, dict[str, Outcome]],
+    settings: Settings,
+) -> None:
+    """Stop unless the settings file holds the values the rules give on dev.
 
-    `similarities` holds the best vector similarity of every dev question.
-    This runs before any test question is searched, so a threshold that was
-    never chosen, or chosen for other guides, cannot use up the scoring of test.
+    `similarities` holds the best vector similarity of every dev question, and
+    `rerank_scores` the reranker's best score. `outcomes` are the dev outcomes
+    with the settings' thresholds. This runs before any test or fresh question
+    is searched, so a value that was never chosen, or chosen for other guides,
+    cannot use up the scoring of those questions.
     """
+    wrong = []
     choice = choose_threshold([(similarities[question.id], question.answerable) for question in dev])
-    if abs(threshold - choice.threshold) >= THRESHOLD_TOLERANCE:
+    if abs(settings.threshold - choice.threshold) >= THRESHOLD_TOLERANCE:
+        wrong.append("threshold")
+    choice = choose_threshold([(rerank_scores[question.id], question.answerable) for question in dev])
+    if abs(settings.rerank_threshold - choice.threshold) >= THRESHOLD_TOLERANCE:
+        wrong.append("rerank_threshold")
+    if choose_default_mode(dev, outcomes["hybrid"], outcomes["rerank"]) != settings.default_mode:
+        wrong.append("default_mode")
+    if wrong:
         raise EvaluationError(
-            "The threshold in settings.toml is not the one the rule gives on dev. "
-            "Run `threshold` first. No test question was searched."
+            "settings.toml does not hold the values the rules give on dev ("
+            + ", ".join(wrong)
+            + "). Run `threshold` first. No test or fresh question was searched."
         )
 
 
@@ -334,10 +413,11 @@ def run_methods(
     embedder: Embedder,
     questions: list[Question],
     guides: list[Guide],
-    threshold: float,
+    settings: Settings,
     lines: dict[str, dict],
+    reranker: Reranker,
 ) -> dict:
-    """Score the given questions with all four methods.
+    """Score the given questions with all five methods.
 
     `lines` is what check_results returned: the stored title-picking answer of
     each question. Returns the part of the report's context that holds what
@@ -345,15 +425,28 @@ def run_methods(
     """
     outcomes = {"title_picking": title_picking_outcomes(questions, lines, guides)}
     for mode in MODES:
-        outcomes[mode] = search_outcomes(conn, embedder, questions, mode, threshold)
+        outcomes[mode] = search_outcomes(
+            conn, embedder, questions, mode, settings.threshold, reranker, settings.rerank_threshold
+        )
 
     # "Ranking only": the same search with refusing switched off, so that a
-    # weak result can be traced to the ranking or to the refusing.
+    # weak result can be traced to the ranking or to the refusing. When a
+    # mode's threshold is already the one that refuses nothing, the search
+    # would be the very same, so it is not run a second time.
     ranking_only = {}
     for mode in RANKING_ONLY_MODES:
-        ranking_only[mode] = search_outcomes(conn, embedder, questions, mode, NEVER_REFUSE)
+        used = settings.rerank_threshold if mode == "rerank" else settings.threshold
+        if used == NEVER_REFUSE:
+            ranking_only[mode] = outcomes[mode]
+        else:
+            ranking_only[mode] = search_outcomes(conn, embedder, questions, mode, NEVER_REFUSE, reranker, NEVER_REFUSE)
 
     return {"outcomes": outcomes, "ranking_only": ranking_only}
+
+
+def best_scores(outcomes: dict[str, Outcome], field: str) -> dict[str, float]:
+    """Question id -> one of the two best scores ("best_similarity" or "best_rerank_score")."""
+    return {question_id: getattr(outcome, field) for question_id, outcome in outcomes.items()}
 
 
 def results_document(context: dict) -> dict:
@@ -374,12 +467,16 @@ def results_document(context: dict) -> dict:
                     "hit_at_3": hit_at(question, outcome, 3),
                     "passage_hit": passage_hit(question, outcome),
                     "best_similarity": outcome.best_similarity,
+                    "best_rerank_score": outcome.best_rerank_score,
                 }
             )
     return {
         "threshold": context["threshold"],
+        "rerank_threshold": context["rerank_threshold"],
+        "default_mode": context["default_mode"],
         "fetched_at": context["snapshot_date"],
         "model_id": context["model_id"],
+        "reranker_id": context["reranker_id"],
         "outcomes": entries,
     }
 
@@ -391,26 +488,44 @@ def run_threshold(
     conn: psycopg.Connection,
     embedder: Embedder,
     questions: list[Question],
-    settings: Settings,
     settings_path: Path,
+    reranker: Reranker,
 ) -> None:
-    """Choose the threshold on the reviewed dev questions and write it to the settings file."""
+    """Choose the two thresholds and the default mode on the reviewed dev questions, and save them."""
     dev = reviewed(questions, "dev")
     if not dev:
         raise EvaluationError("No dev question is reviewed yet, so there is nothing to choose a threshold from.")
 
-    # A vector search with refusing switched off: the best similarity of each
-    # question is what the threshold is chosen from.
-    outcomes = search_outcomes(conn, embedder, dev, "vector", NEVER_REFUSE)
-    similarities = {question_id: outcome.best_similarity for question_id, outcome in outcomes.items()}
-    choice = choose_threshold([(similarities[question.id], question.answerable) for question in dev])
+    # Searches with refusing switched off: the best score of each question is
+    # what each threshold is chosen from.
+    similarities = best_scores(search_outcomes(conn, embedder, dev, "vector", NEVER_REFUSE), "best_similarity")
+    reranked = search_outcomes(conn, embedder, dev, "rerank", NEVER_REFUSE, reranker, NEVER_REFUSE)
+    rerank_scores = best_scores(reranked, "best_rerank_score")
+    threshold = choose_threshold([(similarities[q.id], q.answerable) for q in dev]).threshold
+    rerank_threshold = choose_threshold([(rerank_scores[q.id], q.answerable) for q in dev]).threshold
 
-    # Only the threshold changes. The default mode is written back as it was.
-    save_settings(Settings(threshold=choice.threshold, default_mode=settings.default_mode), settings_path)
+    # The default mode is chosen on the two modes as they will run: each with its threshold.
+    outcomes = {"hybrid": search_outcomes(conn, embedder, dev, "hybrid", threshold)}
+    if rerank_threshold == NEVER_REFUSE:
+        outcomes["rerank"] = reranked
+    else:
+        outcomes["rerank"] = search_outcomes(conn, embedder, dev, "rerank", threshold, reranker, rerank_threshold)
+    default_mode = choose_default_mode(dev, outcomes["hybrid"], outcomes["rerank"])
 
-    context = {"questions": questions, "dev_similarities": similarities, "threshold": choice.threshold}
-    print("\n".join(threshold_lines(context)))
-    print(f"Wrote the threshold {choice.threshold!r} to {settings_path}")
+    save_settings(Settings(threshold, default_mode, rerank_threshold), settings_path)
+
+    context = {
+        "questions": questions,
+        "dev_similarities": similarities,
+        "dev_rerank_scores": rerank_scores,
+        "threshold": threshold,
+        "rerank_threshold": rerank_threshold,
+        "default_mode": default_mode,
+        "outcomes": outcomes,
+    }
+    print("\n".join(threshold_lines(context) + rerank_threshold_lines(context) + default_mode_lines(context)))
+    print(f"Wrote threshold {threshold!r}, rerank_threshold {rerank_threshold!r} "
+          f"and default_mode {default_mode!r} to {settings_path}")
 
 
 def run_dev(
@@ -420,8 +535,9 @@ def run_dev(
     guides: list[Guide],
     settings: Settings,
     baseline_path: Path,
+    reranker: Reranker,
 ) -> None:
-    """Print the dev tables and the dev misses. The test questions are not touched."""
+    """Print the dev tables and the dev misses. No other question is touched."""
     dev = reviewed(questions, "dev")
     if not dev:
         raise EvaluationError("No dev question is reviewed yet, so there is nothing to score.")
@@ -431,9 +547,10 @@ def run_dev(
     lines = check_results(dev, load_results(baseline_path), guides)
 
     context = {"questions": questions, "threshold": settings.threshold}
-    context.update(run_methods(conn, embedder, dev, guides, settings.threshold, lines))
+    context.update(run_methods(conn, embedder, dev, guides, settings, lines, reranker))
 
-    print(f"Threshold used: {settings.threshold!r} (from the settings file)")
+    print(f"Thresholds used: {settings.threshold!r} and, for rerank, {settings.rerank_threshold!r} "
+          "(from the settings file)")
     print()
     print("\n".join(split_lines(context, "dev") + miss_lines(context, "dev")))
 
@@ -446,11 +563,13 @@ def run_final(
     settings: Settings,
     passage_count: int,
     args: argparse.Namespace,
+    reranker: Reranker,
 ) -> None:
-    """Score dev, check the threshold, score test, then write results.json and report.md."""
+    """Score dev, check the settings, score test and fresh, then write results.json and report.md."""
     dev = reviewed(questions, "dev")
     test = reviewed(questions, "test")
-    if not dev and not test:
+    fresh = reviewed(questions, "fresh")
+    if not dev and not test and not fresh:
         raise EvaluationError("No question is reviewed yet, so there is nothing to score.")
 
     output_dir = Path(args.output_dir)
@@ -460,47 +579,59 @@ def run_final(
     # The stored title-picking answers are checked first. That is quick, and a
     # missing or out-of-date answer stops the run before any search is made.
     stored = load_results(Path(args.baseline))
-    lines = check_results(dev + test, stored, guides)
-    check_prompt_revisions(dev + test, stored, guides, args.prompt_revisions)
+    lines = check_results(dev + test + fresh, stored, guides)
+    check_prompt_revisions(dev + test + fresh, stored, guides, args.prompt_revisions)
 
+    # All the command can see is whether a results file from an earlier run is
+    # in the output folder, and which splits it holds. The report says that
+    # and no more.
+    earlier = load_optional_json(results_path)
+    earlier_splits = {entry["split"] for entry in earlier["outcomes"]} if earlier else set()
     context = {
         "snapshot_date": snapshot_date(args.snapshot),
         "guide_count": len(guides),
         "passage_count": passage_count,
         "questions_commit": args.questions_commit,
         "model_id": embedder.model_id,
+        "reranker_id": reranker.model_id,
         "baseline_models": sorted({line["model"] for line in lines.values()}),
         "baseline_dates": sorted({line["date"] for line in lines.values()}),
         "prompt_revisions": args.prompt_revisions,
         "threshold": settings.threshold,
-        # All the command can see is whether a results file from an earlier
-        # run is in the output folder. The report says that and no more.
-        "test_scored_before": results_path.exists(),
+        "rerank_threshold": settings.rerank_threshold,
+        "default_mode": settings.default_mode,
+        "test_scored_before": earlier is not None,
+        "fresh_scored_before": "fresh" in earlier_splits,
         "run_date": date.today().isoformat(),
         "machine": describe_machine(),
         "questions": questions,
         "corrections": load_corrections(Path(args.corrections), questions),
+        "reranker_choice": load_optional_json(Path(args.choice)),
     }
 
-    # dev is scored first. Its "ranking only" vector search gives the best
-    # similarity of every dev question, which is what the threshold rule works
-    # on. So the threshold can be checked before any test question is searched,
-    # and no dev question has to be searched an extra time for it.
-    scored = run_methods(conn, embedder, dev, guides, settings.threshold, lines)
-    unrefused = scored["ranking_only"]["vector"]
-    similarities = {question_id: outcome.best_similarity for question_id, outcome in unrefused.items()}
-    check_threshold(dev, similarities, settings.threshold)
+    # dev is scored first. Its "ranking only" searches give the best scores
+    # of every dev question, which is what the threshold rules work on. So
+    # the settings can be checked before any other question is searched, and
+    # no dev question has to be searched an extra time for it.
+    scored = run_methods(conn, embedder, dev, guides, settings, lines, reranker)
+    similarities = best_scores(scored["ranking_only"]["vector"], "best_similarity")
+    rerank_scores = best_scores(scored["ranking_only"]["rerank"], "best_rerank_score")
+    check_settings(dev, similarities, rerank_scores, scored["outcomes"], settings)
 
-    # Only now is test scored. Its outcomes are added to those of dev.
-    test_scored = run_methods(conn, embedder, test, guides, settings.threshold, lines)
-    for method in METHODS:
-        scored["outcomes"][method].update(test_scored["outcomes"][method])
-    for mode in RANKING_ONLY_MODES:
-        scored["ranking_only"][mode].update(test_scored["ranking_only"][mode])
+    # Only now are test and fresh scored. Their outcomes are added to those of dev.
+    for later in (test, fresh):
+        later_scored = run_methods(conn, embedder, later, guides, settings, lines, reranker)
+        for method in METHODS:
+            scored["outcomes"][method].update(later_scored["outcomes"][method])
+        for mode in RANKING_ONLY_MODES:
+            scored["ranking_only"][mode].update(later_scored["ranking_only"][mode])
 
     context.update(scored)
-    # The threshold section of the report shows how the rule works out on this run's dev scores.
+    # The threshold sections of the report show how the rules work out on this run's dev scores.
     context["dev_similarities"] = similarities
+    context["dev_rerank_scores"] = rerank_scores
+
+    context["tokens"] = matching_tokens(load_optional_json(Path(args.tokens)), context["outcomes"])
 
     # Both texts are built before either file is written, so that a failure
     # cannot leave a new report beside old results.
@@ -512,24 +643,43 @@ def run_final(
     print(f"Wrote {report_path} and {results_path}")
 
 
-def main(argv: list[str] | None = None, embedder: Embedder | None = None) -> int:
+def load_all_questions(questions_path: str | Path, fresh_path: str | Path, guides: list[Guide]) -> list[Question]:
+    """The questions of both files, each file checked. The fresh file is optional."""
+    questions = load_questions(questions_path)
+    check_questions(questions, guides)
+    fresh: list[Question] = []
+    if Path(fresh_path).exists():
+        fresh = load_questions(fresh_path)
+        check_fresh(fresh, questions, guides)
+    return questions + fresh
+
+
+def main(
+    argv: list[str] | None = None,
+    embedder: Embedder | None = None,
+    reranker: Reranker | None = None,
+) -> int:
     """Run `threshold`, `dev` or `final`. Returns 0, or 1 after saying why it could not run.
 
-    `embedder` is only given by the tests. Left out, the real model is used.
+    `embedder` and `reranker` are only given by the tests. Left out, the real
+    models are used.
     """
     parser = argparse.ArgumentParser(description="Score the search methods on the evaluation questions.")
     parser.add_argument("command", choices=["threshold", "dev", "final"])
     parser.add_argument("--questions", default=QUESTIONS_PATH, help="the question file")
+    parser.add_argument("--fresh", default=FRESH_PATH, help="the fresh question file, if there is one")
     parser.add_argument("--snapshot", default=SNAPSHOT_PATH, help="the guide snapshot")
     parser.add_argument("--baseline", default=BASELINE_PATH, help="the stored title-picking answers")
-    parser.add_argument("--settings", default=SETTINGS_PATH, help="the settings file that holds the threshold")
+    parser.add_argument("--settings", default=SETTINGS_PATH, help="the settings file that holds the thresholds")
     parser.add_argument("--corrections", default=CORRECTIONS_PATH, help="the log of label corrections, if there is one")
+    parser.add_argument("--choice", default=CHOICE_PATH, help="the record of the reranker choice, if there is one")
+    parser.add_argument("--tokens", default=TOKENS_PATH, help="the token counts, if there are any")
     parser.add_argument("--output-dir", default=OUTPUT_DIR, help="where final writes results.json and report.md")
     # The next two have no default on purpose. `final` stops without them,
     # because the report states both and no file holds either.
     parser.add_argument(
         "--questions-commit",
-        help="final needs it: the git commit of the question file, for the report",
+        help="final needs it: the git commit of the question files, for the report",
     )
     parser.add_argument(
         "--prompt-revisions",
@@ -544,29 +694,32 @@ def main(argv: list[str] | None = None, embedder: Embedder | None = None) -> int
             check_final_options(args)
         url = database_url()
         guides = load_snapshot(args.snapshot)
-        questions = load_questions(args.questions)
-        check_questions(questions, guides)
+        questions = load_all_questions(args.questions, args.fresh, guides)
         settings = load_settings(Path(args.settings))
 
-        # Connect before the model is loaded: a database that cannot be reached
-        # is then reported at once, not after several seconds of loading.
+        # Connect before the models are loaded: a database that cannot be
+        # reached is then reported at once, not after seconds of loading.
         conn = connect(url)
+        # Imported here and not at the top, because these imports load torch,
+        # which takes seconds. Importing this module must stay quick.
         if embedder is None:
-            # Imported here and not at the top, because this import loads torch,
-            # which takes seconds. Importing this module must stay quick.
             from guide_search.e5 import E5Embedder
 
             embedder = E5Embedder()
+        if reranker is None:
+            from guide_search.cross_encoder import CrossEncoderReranker
+
+            reranker = CrossEncoderReranker()
 
         # "with conn" closes the connection when the block ends.
         with conn:
             passage_count = check_index(conn, embedder, guides)
             if args.command == "threshold":
-                run_threshold(conn, embedder, questions, settings, Path(args.settings))
+                run_threshold(conn, embedder, questions, Path(args.settings), reranker)
             elif args.command == "dev":
-                run_dev(conn, embedder, questions, guides, settings, Path(args.baseline))
+                run_dev(conn, embedder, questions, guides, settings, Path(args.baseline), reranker)
             else:
-                run_final(conn, embedder, questions, guides, settings, passage_count, args)
+                run_final(conn, embedder, questions, guides, settings, passage_count, args, reranker)
     except (
         EvaluationError,
         BaselineError,

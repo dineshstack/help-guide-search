@@ -49,6 +49,7 @@ class Candidate:
     content: str
     score: float  # the ordering value in the mode used
     similarity: float | None  # cosine similarity to the question; None in keyword mode
+    rerank_score: float | None = None  # the reranker's score; None outside rerank mode
 
 
 @dataclass(frozen=True)
@@ -59,6 +60,7 @@ class PassageHit:
     position: int
     text: str
     similarity: float | None
+    rerank_score: float | None = None  # None outside rerank mode
 
 
 @dataclass(frozen=True)
@@ -82,6 +84,7 @@ class SearchResult:
     reason: str | None  # None, or "no_match"
     best_similarity: float | None
     guides: list[GuideHit]
+    best_rerank_score: float | None = None  # the reranker's best score; None outside rerank mode
 
 
 @dataclass(frozen=True)
@@ -184,6 +187,7 @@ def _passage_hit(candidate: Candidate) -> PassageHit:
         position=candidate.position,
         text=candidate.content,
         similarity=candidate.similarity,
+        rerank_score=candidate.rerank_score,
     )
 
 

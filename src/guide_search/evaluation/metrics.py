@@ -5,11 +5,12 @@ returned, best first, or that it refused (returned nothing). Everything here
 is plain arithmetic on lists that are already in memory. There is no
 database, no model and no network, so each rule can be checked by hand.
 
-Three things live here:
+Four things live here:
 
 - the measures for one question (hit@1, hit@3, passage hit, reciprocal rank)
   and their totals over a list of questions;
-- the rule that chooses the "too weak to be a match" threshold;
+- the rule that chooses a "too weak to be a match" threshold;
+- the rule that decides whether rerank or hybrid is the default search mode;
 - the sign test that decides whether one method beat another.
 """
 
@@ -26,7 +27,7 @@ TOP = 3
 @dataclass(frozen=True)
 class Outcome:
     question_id: str
-    method: str                                  # "title_picking", "vector", "keyword" or "hybrid"
+    method: str                                  # "title_picking", or one of the search modes
     refused: bool
     slugs: tuple[str, ...]                       # guides returned, best first (empty when refused)
     # slug -> headings of the passages returned; None means the whole guide was handed over
@@ -34,6 +35,7 @@ class Outcome:
     chars: int                                   # text handed over
     seconds: float
     best_similarity: float | None
+    best_rerank_score: float | None = None       # rerank mode only
 
 
 # --- one question -----------------------------------------------------------
@@ -221,6 +223,26 @@ def choose_threshold(points: list[tuple[float, bool]]) -> ThresholdChoice:
         gap_below=threshold - max(below) if below else None,
         gap_above=min(at_or_above) - threshold if at_or_above else None,
     )
+
+
+def choose_default_mode(
+    questions: list[Question],
+    hybrid: dict[str, Outcome],
+    rerank: dict[str, Outcome],
+) -> str:
+    """"rerank" if it beats hybrid on these questions, otherwise "hybrid".
+
+    To beat hybrid, rerank must return a passage that holds the answer for
+    more of the answerable questions, and refuse at least as many of the
+    unanswerable ones. A tie keeps hybrid, the mode that needs no reranker.
+    """
+    passages_hybrid = summarise_answerable(questions, hybrid).passage_hit3
+    passages_rerank = summarise_answerable(questions, rerank).passage_hit3
+    refusals_hybrid = summarise_unanswerable(questions, hybrid).correct_refusals
+    refusals_rerank = summarise_unanswerable(questions, rerank).correct_refusals
+    if passages_rerank > passages_hybrid and refusals_rerank >= refusals_hybrid:
+        return "rerank"
+    return "hybrid"
 
 
 # --- did one method beat another? -------------------------------------------

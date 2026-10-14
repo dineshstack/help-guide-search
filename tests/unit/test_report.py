@@ -128,6 +128,10 @@ RANKING_ONLY = {
     },
 }
 
+# The methods of the runs before reranking was added. make_context builds
+# such a run; make_rerank_context, further down, builds one with rerank.
+FOUR_METHODS = ("title_picking", "vector", "keyword", "hybrid")
+
 # The best similarity of each reviewed dev question. Sorted: 0.2, 0.7, 0.9.
 # Candidates: 0.0 handles 2 of 3 (it never refuses), 0.45 handles 3 of 3,
 # 0.8 handles 2 of 3. So the rule chooses 0.45, which is 0.25 away from the
@@ -688,7 +692,7 @@ def test_the_similarity_range_shows_the_median_and_not_the_average() -> None:
     everywhere = {question.id: RIGHT for question in questions}
     context = make_context(
         questions=questions,
-        outcomes=make_outcomes({method: everywhere for method in METHODS}),
+        outcomes=make_outcomes({method: everywhere for method in FOUR_METHODS}),
         ranking_only=make_outcomes({"vector": everywhere, "hybrid": everywhere}),
         dev_similarities={"en-d1": 0.5, "en-d2": 0.9, "en-d3": 0.6},
         threshold=0.0,
@@ -912,11 +916,19 @@ def test_the_report_ends_with_one_newline() -> None:
 
 
 def test_every_method_has_a_name_in_the_report() -> None:
-    test = section(render_report(make_context()), "## Results on test")
+    test = section(render_report(make_rerank_context()), "## Results on test")
 
-    assert METHODS == ("title_picking", "vector", "keyword", "hybrid")
-    for name in ["Title-picking", "Vector", "Keyword", "Hybrid"]:
+    assert METHODS == ("title_picking", "vector", "keyword", "hybrid", "rerank")
+    for name in ["Title-picking", "Vector", "Keyword", "Hybrid", "Rerank"]:
         assert row(section(test, ENGLISH), name)[0] == name
+
+
+def test_a_run_without_rerank_has_no_rerank_row_and_no_rerank_section() -> None:
+    report = render_report(make_context())
+
+    assert "| Rerank |" not in report
+    for heading in ["## Rerank search against title-picking", "## The rerank threshold", "## The default mode"]:
+        assert heading not in report
 
 
 # --- the machine ------------------------------------------------------------
@@ -1018,3 +1030,282 @@ def test_a_limit_on_only_one_of_the_two_is_still_reported(tmp_path: Path) -> Non
     (tmp_path / "memory.max").write_text("max\n", encoding="utf-8")
 
     assert container_limits(tmp_path) == "1.5 CPUs"
+
+
+# --- rerank -----------------------------------------------------------------
+
+# Three fresh questions: written after the rest were scored.
+FRESH_QUESTIONS = [
+    make_question("fr-1", "fresh", "The back tyre went soft overnight", (PUNCTURE,)),
+    make_question("fr-2", "fresh", "Grinding noise when I pedal", (CHAIN,)),
+    make_question("fn-1", "fresh", "Can I rent a cargo bike?", ()),
+]
+
+RERANK_RETURNED = {
+    "title_picking": {"fr-1": (PUNCTURE,), "fr-2": (CHAIN,), "fn-1": (SADDLE,)},
+    "vector": {"fr-1": (CHAIN,), "fr-2": (CHAIN,), "fn-1": (PUNCTURE,)},
+    "keyword": {"fr-1": (CHAIN,), "fr-2": (CHAIN,), "fn-1": (PUNCTURE,)},
+    "hybrid": {"fr-1": (CHAIN,), "fr-2": (CHAIN,), "fn-1": (PUNCTURE,)},
+    # Rerank refuses the three questions the guides cannot answer and misses fr-2.
+    "rerank": {
+        "en-t1": (PUNCTURE,),
+        "en-t2": (CHAIN,),
+        "na-t1": None,
+        "en-d1": (SADDLE,),
+        "en-d2": (PUNCTURE,),
+        "na-d1": None,
+        "fr-1": (PUNCTURE,),
+        "fr-2": (SADDLE,),
+        "fn-1": None,
+    },
+}
+
+# The reranker's best score of each reviewed dev question. Sorted: 0.1, 0.8,
+# 0.95. Candidates: 0.0 handles 2 of 3, 0.45 handles 3 of 3, 0.875 handles
+# 2 of 3. So the rule chooses 0.45.
+DEV_RERANK_SCORES = {"en-d1": 0.95, "en-d2": 0.8, "na-d1": 0.1}
+
+CHOICE = {
+    "date": "2026-01-04",
+    "machine": "Test laptop",
+    "threads": 2,
+    "limit_seconds": 10.0,
+    "answerable": 2,
+    "candidates": [
+        {
+            "name": "small-reranker", "revision": "r1", "loaded": True, "note": None,
+            "hit1": 2, "hit3": 2, "passage_hit3": 2, "total": 2, "median_seconds": 0.2, "max_seconds": 0.3,
+        },
+        {
+            "name": "big-reranker", "revision": "r2", "loaded": True, "note": "slower than the limit",
+            "hit1": 2, "hit3": 2, "passage_hit3": 2, "total": 2, "median_seconds": 1.5, "max_seconds": 2.0,
+        },
+        {"name": "odd-reranker", "revision": "r3", "loaded": False, "note": "it needs code from its own repository"},
+    ],
+    "hybrid": {
+        "loaded": True, "note": None,
+        "hit1": 1, "hit3": 2, "passage_hit3": 1, "total": 2, "median_seconds": 0.03, "max_seconds": 0.05,
+    },
+    "chosen": "small-reranker",
+}
+
+
+def token_entries(outcomes: dict[str, dict[str, Outcome]]) -> list[dict]:
+    """2,000 tokens for each title-picking answer, 500 for each search result, 0 when refused."""
+    entries = []
+    for method, by_question in outcomes.items():
+        for question_id, outcome in by_question.items():
+            tokens = 0 if outcome.refused else (2000 if method == "title_picking" else 500)
+            entries.append(
+                {"question_id": question_id, "method": method, "slugs": list(outcome.slugs),
+                 "refused": outcome.refused, "tokens": tokens}
+            )
+    return entries
+
+
+def make_rerank_context(**changes: object) -> dict:
+    """The context of a run with rerank, the fresh questions, the reranker choice and the token counts."""
+    returned = {method: dict(by_question) for method, by_question in RETURNED.items()}
+    for method, by_question in RERANK_RETURNED.items():
+        returned.setdefault(method, {}).update(by_question)
+    outcomes = make_outcomes(returned)
+    ranking_only = {mode: dict(by_question) for mode, by_question in RANKING_ONLY.items()}
+    for mode in ("vector", "hybrid"):
+        ranking_only[mode].update(RERANK_RETURNED[mode])
+    # With refusing switched off, rerank returns the chain guide where it refused.
+    ranking_only["rerank"] = {question_id: slugs or (CHAIN,) for question_id, slugs in RERANK_RETURNED["rerank"].items()}
+    context = make_context(
+        questions=QUESTIONS + FRESH_QUESTIONS,
+        outcomes=outcomes,
+        ranking_only=make_outcomes(ranking_only),
+        reranker_id="fake-reranker@rev2",
+        rerank_threshold=0.45,
+        default_mode="hybrid",
+        fresh_scored_before=False,
+        dev_rerank_scores=DEV_RERANK_SCORES,
+        reranker_choice=CHOICE,
+        tokens={"model": "claude-test", "date": "2026-01-04", "entries": token_entries(outcomes)},
+    )
+    context.update(changes)
+    return context
+
+
+def test_a_run_with_rerank_has_every_section_in_order() -> None:
+    report = render_report(make_rerank_context())
+
+    headings = [line for line in report.split("\n") if line.startswith("## ")]
+
+    assert headings == [
+        "## What was run",
+        "## Headline: hybrid search against title-picking",
+        "## Rerank search against title-picking",
+        "## Is search good enough to rely on?",
+        "## How to read the tables",
+        "## Results on test",
+        "## Results on fresh",
+        "## Results on dev",
+        "## Time",
+        "## Tokens a model must read",
+        "## The threshold",
+        "## The rerank threshold",
+        "## The default mode",
+        "## The reranker",
+        "## Misses",
+        "## Label corrections",
+        "## Limits",
+    ]
+
+
+def test_what_was_run_names_the_reranker_its_threshold_the_default_mode_and_the_fresh_questions() -> None:
+    what = section(render_report(make_rerank_context()), "## What was run")
+
+    assert "- Reranker: `fake-reranker@rev2`" in what
+    assert "- Rerank threshold: 0.4500." in what
+    assert "- Default mode: hybrid" in what
+    assert "the question files at commit `0123abcd`" in what
+    assert "9 reviewed and scored (3 dev, 3 test, 3 fresh)" in what
+    assert "- Fresh questions: scored in this run. No results file from an earlier run held them." in what
+
+
+def test_a_later_run_says_that_the_fresh_questions_were_scored_again() -> None:
+    what = section(render_report(make_rerank_context(fresh_scored_before=True)), "## What was run")
+
+    assert "- Fresh questions: scored again." in what
+
+
+def test_rerank_is_compared_with_title_picking_on_test_and_on_fresh() -> None:
+    comparison = section(render_report(make_rerank_context()), "## Rerank search against title-picking")
+
+    # test: rerank gets both English questions first; title-picking gets en-t2 only in second place.
+    assert row(section(comparison, "### On test"), "hit@1") == ["hit@1", "2 of 2 (100%)", "1 of 2 (50%)", "1", "0", "1.000"]
+    # fresh: rerank misses fr-2, title-picking gets both.
+    assert row(section(comparison, "### On fresh"), "hit@3") == ["hit@3", "1 of 2 (50%)", "2 of 2 (100%)", "0", "1", "1.000"]
+    assert "between rerank search and title-picking" in comparison
+
+
+def test_the_bar_is_met_on_test_and_missed_on_fresh_by_one_question() -> None:
+    bar = section(render_report(make_rerank_context()), "## Is search good enough to rely on?")
+
+    # Two English questions in each split: 90% of 2 rounds up to 2.
+    assert row(bar, "test", "Rerank") == ["test", "Rerank", "2 of 2 (100%)", "2 of 2", "yes"]
+    assert row(bar, "fresh", "Rerank") == ["fresh", "Rerank", "1 of 2 (50%)", "2 of 2", "no"]
+    assert row(bar, "fresh", "Hybrid") == ["fresh", "Hybrid", "1 of 2 (50%)", "2 of 2", "no"]
+    assert "- On test, rerank search **meets** the bar." in bar
+    assert "- On fresh, rerank search **falls short** of the bar by 1 question." in bar
+
+
+@pytest.mark.parametrize("total, needed", [(20, 18), (10, 9), (25, 23), (7, 7), (1, 1)])
+def test_the_bar_needs_nine_in_ten_rounded_up(total: int, needed: int) -> None:
+    questions = [make_question(f"en-t{number}", "test") for number in range(total)]
+    everywhere = {question.id: RIGHT for question in questions}
+    context = make_rerank_context(
+        questions=questions,
+        outcomes=make_outcomes({method: everywhere for method in METHODS}),
+        ranking_only=make_outcomes({mode: everywhere for mode in ("vector", "hybrid", "rerank")}),
+        tokens=None,
+    )
+
+    bar = section(render_report(context), "## Is search good enough to rely on?")
+
+    assert row(bar, "test", "Rerank")[3] == f"{needed} of {total}"
+
+
+def test_the_fresh_questions_get_their_own_section_and_are_not_mixed_with_test() -> None:
+    fresh = section(render_report(make_rerank_context()), "## Results on fresh")
+
+    assert "nothing had been measured on them" in fresh
+    assert row(section(fresh, ENGLISH), "Rerank")[1:4] == ["1 of 2 (50%)", "1 of 2 (50%)", "1 of 2 (50%)"]
+    assert row(section(fresh, UNANSWERABLE), "Rerank")[1] == "1 of 1 (100%)"
+
+
+def test_the_ranking_only_table_has_rerank_when_rerank_was_run() -> None:
+    test = section(render_report(make_rerank_context()), "## Results on test")
+
+    ranking = section(test, RANKING)
+    assert "Vector, hybrid and rerank search, run again with the threshold at 0" in ranking
+    assert row(ranking, "Rerank", "English")[0] == "Rerank"
+
+
+def test_the_rerank_threshold_section_lists_the_candidates_and_the_choice() -> None:
+    threshold = section(render_report(make_rerank_context()), "## The rerank threshold")
+
+    assert "Rerank threshold in `settings.toml`, used in this run: 0.4500." in threshold
+    assert "The rule, applied to this run's dev scores, gives the same value." in threshold
+    assert row(threshold, "0.4500") == ["0.4500", "3 of 3", "chosen"]
+    assert row(threshold, "Unanswerable") == ["Unanswerable", "1", "0.1000", "0.1000", "0.1000"]
+    assert "The reranker's best score of the dev questions, by group:" in threshold
+
+
+def test_a_rerank_threshold_of_zero_says_that_rerank_never_refuses() -> None:
+    context = make_rerank_context(rerank_threshold=0.0, dev_rerank_scores={"en-d1": 0.2, "en-d2": 0.9, "na-d1": 0.6})
+
+    threshold = section(render_report(context), "## The rerank threshold")
+
+    assert "rerank search never refuses" in threshold
+
+
+def test_the_default_mode_section_shows_why_hybrid_stays_the_default() -> None:
+    default = section(render_report(make_rerank_context()), "## The default mode")
+
+    # On dev both modes return the answering passage for both questions, and both refuse na-d1.
+    assert row(default, "Hybrid") == ["Hybrid", "2 of 2 (100%)", "1 of 1 (100%)"]
+    assert row(default, "Rerank") == ["Rerank", "2 of 2 (100%)", "1 of 1 (100%)"]
+    assert "The rule's choice is hybrid. `settings.toml` holds hybrid." in default
+
+
+def test_rerank_becomes_the_default_when_it_finds_more_answering_passages_on_dev() -> None:
+    context = make_rerank_context(default_mode="rerank")
+    context["outcomes"]["hybrid"]["en-d2"] = replace(context["outcomes"]["hybrid"]["en-d2"], slugs=(CHAIN,), headings={CHAIN: ("How to",)})
+
+    default = section(render_report(context), "## The default mode")
+
+    assert "The rule's choice is rerank. `settings.toml` holds rerank." in default
+
+
+def test_the_reranker_section_shows_every_candidate_and_the_choice() -> None:
+    choice = section(render_report(make_rerank_context()), "## The reranker")
+
+    assert row(choice, "`small-reranker`") == [
+        "`small-reranker`", "2 of 2 (100%)", "2 of 2 (100%)", "2 of 2 (100%)", "200 ms", "300 ms", "",
+    ]
+    assert row(choice, "`big-reranker`")[-1] == "slower than the limit"
+    assert row(choice, "`odd-reranker`")[1] == "not run: it needs code from its own repository"
+    assert row(choice, "Hybrid search, no reranker")[3] == "1 of 2 (50%)"
+    assert "with torch limited to 2 threads" in choice
+    assert "Chosen: `small-reranker`." in choice
+    assert "No candidate met the time limit." in choice
+    assert "raised the limit to 10 seconds" in choice
+
+
+def test_the_token_section_gives_the_median_without_refused_questions() -> None:
+    tokens = section(render_report(make_rerank_context()), "## Tokens a model must read")
+
+    # Title-picking answered all nine questions but na-d1; rerank refused three of nine.
+    assert row(tokens, "Title-picking") == ["Title-picking", "8", "2,000", "2,000"]
+    assert row(tokens, "Rerank") == ["Rerank", "6", "500", "500"]
+    assert "Counted for `claude-test` on 2026-01-04." in tokens
+
+
+def test_a_run_without_token_counts_or_a_choice_record_has_neither_section() -> None:
+    report = render_report(make_rerank_context(tokens=None, reranker_choice=None))
+
+    assert "## Tokens a model must read" not in report
+    assert "## The reranker\n" not in report
+
+
+def test_the_limits_of_a_rerank_run_include_the_rerank_limits_above_the_arabic_note() -> None:
+    limits = section(render_report(make_rerank_context()), "## Limits").split("\n")
+
+    assert len(bullets("\n".join(limits))) == 11
+    assert any("Rerank can only reorder what hybrid search found" in line for line in limits)
+    last_limit = max(number for number, line in enumerate(limits) if line.startswith("- "))
+    assert limits[last_limit + 1 : last_limit + 3] == ["", ARABIC_LIMITS_NOTE]
+
+
+def test_the_token_section_says_how_many_counts_were_left_out() -> None:
+    context = make_rerank_context()
+    context["tokens"] = {**context["tokens"], "left_out": 2}
+
+    tokens = section(render_report(context), "## Tokens a model must read")
+
+    assert "2 counts were left out" in tokens

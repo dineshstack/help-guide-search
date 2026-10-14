@@ -25,6 +25,7 @@ from guide_search.config import Settings, save_settings
 from guide_search.embedding import FakeEmbedder
 from guide_search.ingest import ingest
 from guide_search.ranking import SearchResult
+from guide_search.reranking import FakeReranker
 from guide_search.service import Service, build
 from guide_search.snapshot import PUBLIC_PAGE_PREFIX, load_snapshot
 
@@ -122,6 +123,34 @@ def test_search_uses_the_mode_that_is_asked_for(client: TestClient):
     assert body["mode"] == "keyword"
     assert body["best_similarity"] is None
     assert body["guides"][0]["slug"] == "replace-a-snapped-spar"
+
+
+def test_search_in_rerank_mode_carries_the_reranker_scores(conn: psycopg.Connection, database_url: str):
+    ingest_fixture(conn)
+    service = Service(database_url, FakeEmbedder(), SETTINGS, reranker=FakeReranker())
+
+    with TestClient(create_app(service)) as test_client:
+        body = test_client.get("/search", params={"q": "replace a snapped spar", "mode": "rerank"}).json()
+
+    assert body["mode"] == "rerank"
+    assert body["guides"][0]["slug"] == "replace-a-snapped-spar"
+    # All four words of the question are in the passage: the fake reranker gives 1.
+    assert body["best_rerank_score"] == 1.0
+    assert body["guides"][0]["passages"][0]["rerank_score"] == 1.0
+
+
+def test_a_service_whose_default_mode_is_rerank_searches_in_rerank_mode(conn: psycopg.Connection, database_url: str):
+    ingest_fixture(conn)
+    settings = Settings(threshold=0.3, default_mode="rerank", rerank_threshold=0.5)
+    service = Service(database_url, FakeEmbedder(), settings, reranker=FakeReranker())
+
+    found = service.search("replace a snapped spar", None)
+    refused = service.search("do you sell bicycle bells", None)
+
+    assert found.mode == "rerank"
+    assert found.guides[0].slug == "replace-a-snapped-spar"
+    # Its best reranker score is 0.4, below the settings' 0.5.
+    assert refused.reason == "no_match"
 
 
 def test_search_that_finds_nothing_good_enough_is_200_with_the_reason_no_match(client: TestClient):
@@ -315,6 +344,10 @@ def test_build_puts_the_database_address_the_settings_file_and_the_routes_togeth
     stand_in = types.ModuleType("guide_search.e5")
     stand_in.E5Embedder = FakeEmbedder
     monkeypatch.setitem(sys.modules, "guide_search.e5", stand_in)
+    # The same for the reranker, from guide_search.cross_encoder.
+    reranker_stand_in = types.ModuleType("guide_search.cross_encoder")
+    reranker_stand_in.CrossEncoderReranker = FakeReranker
+    monkeypatch.setitem(sys.modules, "guide_search.cross_encoder", reranker_stand_in)
     # build() reads DATABASE_URL, and settings.toml in the current folder.
     monkeypatch.setenv("DATABASE_URL", database_url)
     # Without a key the answer agent is left out, which is what this test is about.
